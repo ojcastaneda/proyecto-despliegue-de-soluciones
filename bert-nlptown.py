@@ -49,6 +49,7 @@ def run_classification():
     save_model(model, path)
     # Función para cargar el modelo
     model, _ = load_model(model_name, path)
+    # Predicción manual de prompts
     print(predict_classification(model, tokenizer, prompts, arguments))
 
 # Tarea de detección 0 o 1.

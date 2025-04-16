@@ -10,5 +10,6 @@ dependencies = [
     "protobuf==6.30.2",
     "scikit-learn==1.6.1",
     "transformers==4.51.1",
-    "peft==0.15.1"
+    "peft==0.15.1",
+    "ydata-profiling==4.16.1"
 ]
