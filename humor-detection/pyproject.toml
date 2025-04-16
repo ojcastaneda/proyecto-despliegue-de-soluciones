@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humor-detection"
+version = "1.0.0"
+description = ""
+dependencies = [
+    "protobuf==6.30.2",
+    "scikit-learn==1.6.1",
+    "transformers==4.51.1",
+    "peft==0.15.1"
+]
