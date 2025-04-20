@@ -151,7 +151,7 @@ class TrainMultilingual(FinalDatasetProcessor):
         return concat(
             [
                 load_csv(HAHATrain),
-                load_csv(SpanishJokes),
+                load_csv(StupidStuff),
             ],
             ignore_index=True,
         ).drop_duplicates(subset=["text"], keep=False)

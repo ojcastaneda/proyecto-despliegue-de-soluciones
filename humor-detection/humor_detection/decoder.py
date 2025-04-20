@@ -73,7 +73,7 @@ def metrics(
         positive_indices = where(mask[i])[0]
         index = 0 if len(positive_indices) < 0 else positive_indices[-1]
         labels[i] = token_dictionary[prediction.label_ids[i, index]]
-        predictions[i] = token_dictionary.get(prediction.predictions[i, index], "-1")
+        predictions[i] = token_dictionary[prediction.predictions[i, index]]
     return classification_report(
         labels,
         predictions,
@@ -139,7 +139,7 @@ def setup(tokenizer: PreTrainedTokenizerBase, classes: list[str]):
     tokens: list[int] = []
     token_dictionary: dict[int, str] = {}
     for token in classes:
-        token_id = tokenizer.encode(token)[0]
+        token_id = tokenizer.encode(token, add_special_tokens=False)[0]
         tokens.append(token_id)
         token_dictionary[token_id] = token
 
