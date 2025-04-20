@@ -53,7 +53,7 @@ def train_classification(
         (TrainMultilingual if english_data else Train).classification_path
     )
     if full_dataset:
-        validation_dataset = load_csv(Test)
+        validation_dataset = load_csv(Test.classification_path)
     else:
         train_dataset, validation_dataset = train_test_split(
             train_dataset, test_size=0.2
@@ -81,7 +81,7 @@ def train_detection(
         (TrainMultilingual if english_data else Train).detection_path
     )
     if full_dataset:
-        validation_dataset = load_csv(Test)
+        validation_dataset = load_csv(Test.detection_path)
     else:
         train_dataset, validation_dataset = train_test_split(
             train_dataset, test_size=0.2
