@@ -12,8 +12,8 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
 
 
-model_name = "openai-community/gpt2"
-evaluation_batch_size = 15
+model_name = "google/gemma-3-1b-pt"
+evaluation_batch_size = 5
 arguments = TrainingArguments(
     bf16=True,
     bf16_full_eval=True,
@@ -36,6 +36,7 @@ prompts = [
 
 def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
   tokenizer.pad_token = tokenizer.eos_token
+  tokenizer.model_max_length = 32000
 
 
 def run_classification():
@@ -49,7 +50,7 @@ def run_classification():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_classification:")
   print(test_classification(model, tokenizer, arguments, prompter))
-  path = f"./models/gpt2/classification"
+  path = f"./models/gemma3/classification"
   save_model(model, path)
   model, _ = load_model(model_name, path)
   # print("predict_classification:")
@@ -67,7 +68,7 @@ def run_detection():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_detection:")
   print(test_detection(model, tokenizer, arguments, prompter))
-  path = f"./models/gpt2/detection"
+  path = f"./models/gemma3/detection"
   save_model(model, path)
   model, _ = load_model(model_name, path)
   # print("predict_detection:")

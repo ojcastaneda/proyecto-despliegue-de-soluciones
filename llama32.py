@@ -11,9 +11,18 @@ from peft import LoraConfig
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
 
+import sys
+import huggingface_hub as hf
 
-model_name = "openai-community/gpt2"
-evaluation_batch_size = 15
+# Ejecutar script y pasar access token de HuggingFace.
+# `python llama32.py <HF Access Token>`
+# args = sys.argv[1:]
+# hf_access_token = args[0]
+
+# hf.login(hf_access_token)
+
+model_name = "meta-llama/Llama-3.2-1B"
+evaluation_batch_size = 5
 arguments = TrainingArguments(
     bf16=True,
     bf16_full_eval=True,
@@ -49,7 +58,7 @@ def run_classification():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_classification:")
   print(test_classification(model, tokenizer, arguments, prompter))
-  path = f"./models/gpt2/classification"
+  path = f"./models/llama32/classification"
   save_model(model, path)
   model, _ = load_model(model_name, path)
   # print("predict_classification:")
@@ -67,7 +76,7 @@ def run_detection():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_detection:")
   print(test_detection(model, tokenizer, arguments, prompter))
-  path = f"./models/gpt2/detection"
+  path = f"./models/llama32/detection"
   save_model(model, path)
   model, _ = load_model(model_name, path)
   # print("predict_detection:")

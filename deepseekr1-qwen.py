@@ -12,8 +12,8 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
 
 
-model_name = "openai-community/gpt2"
-evaluation_batch_size = 15
+model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+evaluation_batch_size = 5
 arguments = TrainingArguments(
     bf16=True,
     bf16_full_eval=True,
@@ -49,7 +49,7 @@ def run_classification():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_classification:")
   print(test_classification(model, tokenizer, arguments, prompter))
-  path = f"./models/gpt2/classification"
+  path = f"./models/deepseek/classification"
   save_model(model, path)
   model, _ = load_model(model_name, path)
   # print("predict_classification:")
@@ -67,7 +67,7 @@ def run_detection():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_detection:")
   print(test_detection(model, tokenizer, arguments, prompter))
-  path = f"./models/gpt2/detection"
+  path = f"./models/deepseek/detection"
   save_model(model, path)
   model, _ = load_model(model_name, path)
   # print("predict_detection:")
