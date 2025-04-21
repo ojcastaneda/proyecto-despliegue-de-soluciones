@@ -49,9 +49,9 @@ def run_classification():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_classification:")
   print(test_classification(model, tokenizer, arguments, prompter))
-  path = f"./models/deepseek/classification"
+  path = f"./models/deepseekr1-qwen/classification"
   save_model(model, path)
-  model, _ = load_model(model_name, path)
+  # model, _ = load_model(model_name, path)
   # print("predict_classification:")
   # print(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
@@ -67,9 +67,9 @@ def run_detection():
   arguments.per_device_eval_batch_size = evaluation_batch_size
   print("test_detection:")
   print(test_detection(model, tokenizer, arguments, prompter))
-  path = f"./models/deepseek/detection"
+  path = f"./models/deepseekr1-qwen/detection"
   save_model(model, path)
-  model, _ = load_model(model_name, path)
+  # model, _ = load_model(model_name, path)
   # print("predict_detection:")
   # print(predict_detection(model, tokenizer, prompts, arguments, prompter))
 

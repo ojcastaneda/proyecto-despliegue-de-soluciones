@@ -51,7 +51,7 @@ def run_classification():
   print(test_classification(model, tokenizer, arguments, prompter))
   path = f"./models/gpt2/classification"
   save_model(model, path)
-  model, _ = load_model(model_name, path)
+  # model, _ = load_model(model_name, path)
   # print("predict_classification:")
   # print(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
@@ -69,7 +69,7 @@ def run_detection():
   print(test_detection(model, tokenizer, arguments, prompter))
   path = f"./models/gpt2/detection"
   save_model(model, path)
-  model, _ = load_model(model_name, path)
+  # model, _ = load_model(model_name, path)
   # print("predict_detection:")
   # print(predict_detection(model, tokenizer, prompts, arguments, prompter))
 
