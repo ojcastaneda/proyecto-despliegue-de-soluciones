@@ -4,7 +4,7 @@ from pandas import DataFrame
 from peft import LoraConfig, PeftModel, get_peft_model
 from shutil import rmtree
 from sklearn.metrics import classification_report
-from torch import Tensor, argmax, tensor
+from torch import Tensor, argmax, softmax, tensor
 from transformers.data.data_collator import DataCollatorWithPadding
 from transformers.models.auto.modeling_auto import AutoModelForSequenceClassification
 from transformers.models.auto.tokenization_auto import AutoTokenizer
@@ -72,8 +72,8 @@ def save_model(model: PreTrainedModel | PeftModel, path: str):
     model.save_pretrained(path)
 
 
-def predict(prediction: PredictionOutput):
-    return preprocess_logits(tensor(prediction.predictions), tensor([]))
+def predict(prediction: PredictionOutput, threshold: float | None):
+    return preprocess_logits(tensor(prediction.predictions), tensor([]), threshold)
 
 
 def preprocess(
@@ -91,8 +91,10 @@ def preprocess(
     return Dataset.from_pandas(dataset).map(tokenize_function, batched=True)
 
 
-def preprocess_logits(logits: Tensor, _: Tensor | None = None):
-    return argmax(logits, dim=-1)
+def preprocess_logits(logits: Tensor, _: Tensor, threshold: float | None):
+    if threshold is None:
+        return argmax(logits, dim=-1)
+    return (softmax(logits, dim=-1)[:, 1] > threshold).int()
 
 
 def setup(tokenizer: PreTrainedTokenizerBase):

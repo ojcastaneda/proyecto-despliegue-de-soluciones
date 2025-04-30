@@ -192,7 +192,10 @@ class HAHATrain(DatasetProcessor):
                     majority_found = True
                     break
             if not majority_found:
-                result.loc[idx, "score"] = round(dataset.loc[idx, "funniness_average"])  # type: ignore
+                for i in range(5, 0, -1):
+                    if (votes[i - 1] / total_votes) > 0.2:
+                        result.loc[idx, "score"] = i
+                        break
         result["score"] = result["score"].clip(0, 5)
         return result
 

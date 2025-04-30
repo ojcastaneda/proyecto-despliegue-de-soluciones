@@ -12,19 +12,22 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
 
 
+# model_name = "openai-community/gpt2-medium"
 model_name = "openai-community/gpt2"
-evaluation_batch_size = 15
 arguments = TrainingArguments(
     bf16=True,
     bf16_full_eval=True,
     eval_strategy="epoch",
+    logging_strategy="epoch",
     num_train_epochs=2,
+    # weight_decay=5e-6,
     optim="adamw_8bit",
-    per_device_eval_batch_size=25,
-    per_device_train_batch_size=25,
-    save_strategy="no"
+    lr_scheduler_type="cosine_with_restarts",
+    per_device_eval_batch_size=15,
+    per_device_train_batch_size=30,
+    save_strategy="no",
 )
-# lora = LoraConfig("CAUSAL_LM", lora_alpha=16, lora_dropout=0.1, r=128)
+# lora = LoraConfig(lora_alpha=8, lora_dropout=0.1, r=16, task_type="CAUSAL_LM")
 prompts = [
     "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",
     "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",
@@ -44,13 +47,18 @@ def run_classification():
 
     model, tokenizer = classification_model(model_name)
     fix_tokenizer(tokenizer)
-    train_classification(model, tokenizer, arguments, prompter=prompter)
-    arguments.per_device_eval_batch_size = evaluation_batch_size
-    print(test_classification(model, tokenizer, arguments, prompter))
+    train_classification(
+        model,
+        tokenizer,
+        arguments,
+        prompter=prompter,
+        full_dataset=True,
+        class_weights=[1, 1.25, 1.25, 2.6, 8],
+    )
     path = f"./models/gpt2/classification"
     save_model(model, path)
     model, _ = load_model(model_name, path)
-    print(predict_classification(model, tokenizer, prompts, arguments, prompter))
+    # print(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
 
 def run_detection():
@@ -59,15 +67,21 @@ def run_detection():
 
     model, tokenizer = detection_model(model_name)
     fix_tokenizer(tokenizer)
-    train_detection(model, tokenizer, arguments, prompter=prompter)
-    arguments.per_device_eval_batch_size = evaluation_batch_size
-    print(test_detection(model, tokenizer, arguments, prompter))
+    train_detection(
+        model,
+        tokenizer,
+        arguments,
+        prompter=prompter,
+        full_dataset=True,
+        sample="under",
+        threshold=0.85,
+    )
     path = f"./models/gpt2/detection"
     save_model(model, path)
     model, _ = load_model(model_name, path)
-    print(predict_detection(model, tokenizer, prompts, arguments, prompter))
+    # print(predict_detection(model, tokenizer, prompts, arguments, prompter))
 
 
 if __name__ == "__main__":
-    run_classification()
+    # run_classification()
     run_detection()

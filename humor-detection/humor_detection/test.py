@@ -1,16 +1,9 @@
 from .dataset import Test, load_csv
-from .utils import (
-    classification_classes,
-    detection_classes,
-    optimize_arguments,
-    preprocess_logits,
-    setup,
-)
+from .utils import CustomTrainer, optimize_arguments, preprocess_logits, setup
 from pandas import DataFrame
 from peft import PeftModel
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
-from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
 from typing import Callable
 
@@ -21,19 +14,20 @@ def test(
     dataset: DataFrame,
     arguments: TrainingArguments,
     prompter: Callable[[str], str] | None,
-    classes: list[str],
+    threshold: float | None,
 ):
     optimize_arguments(arguments, model)
-    tokens, data_collator, preprocess_dataset, compute_metrics = setup(
-        model, tokenizer, classes
+    token_ids, data_collator, preprocess_dataset, compute_metrics = setup(
+        model, tokenizer, arguments
     )
-    return Trainer(
+    return CustomTrainer(
         model,
         arguments,
         data_collator,
         eval_dataset=preprocess_dataset(dataset, tokenizer, prompter),
         compute_metrics=compute_metrics,
-        preprocess_logits_for_metrics=preprocess_logits(tokens),
+        preprocess_logits_for_metrics=preprocess_logits(threshold, token_ids),
+        token_ids=token_ids,
     ).evaluate()
 
 
@@ -44,12 +38,7 @@ def test_classification(
     prompter: Callable[[str], str] | None = None,
 ):
     return test(
-        model,
-        tokenizer,
-        load_csv(Test.classification_path),
-        arguments,
-        prompter,
-        classification_classes,
+        model, tokenizer, load_csv(Test.classification_path), arguments, prompter, None
     )
 
 
@@ -58,12 +47,8 @@ def test_detection(
     tokenizer: PreTrainedTokenizerBase,
     arguments: TrainingArguments,
     prompter: Callable[[str], str] | None = None,
+    threshold: float | None = None,
 ):
     return test(
-        model,
-        tokenizer,
-        load_csv(Test.detection_path),
-        arguments,
-        prompter,
-        detection_classes,
+        model, tokenizer, load_csv(Test.detection_path), arguments, prompter, threshold
     )
