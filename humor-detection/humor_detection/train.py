@@ -1,5 +1,11 @@
 from .dataset import Test, Train, TrainMultilingual, load_csv
-from .utils import CustomTrainer, optimize_arguments, preprocess_logits, setup
+from .utils import (
+    CustomTrainer,
+    log_metrics_mlflow,
+    optimize_arguments,
+    preprocess_logits,
+    setup,
+)
 from pandas import DataFrame, concat
 from peft import PeftModel
 from sklearn.model_selection import train_test_split
@@ -21,6 +27,7 @@ def train(
     class_weights: list[float] | None,
     sample: Literal["under", "over", False],
     threshold: float | None,
+    full_dataset: bool,
 ):
     optimize_arguments(arguments, model)
     if sample:
@@ -46,24 +53,37 @@ def train(
         )
         for i in range(len(class_weights)):
             weights[i] = class_weights[i]
-        # else:
-        #     weights = [0.0] * len(tokenizer)
-        #     classes: list[str] =   # type: ignore
-        #     for i in range(len(class_weights)):
-        #         weights[token_ids[classes[i]]] = class_weights[i]
         weights = tensor(weights)
+    eval_dataset = preprocess_dataset(validation_dataset, tokenizer, prompter)
+    if full_dataset:
+        arguments.set_evaluate("no")
     trainer = CustomTrainer(
         model,
         arguments,
         data_collator,
         train_dataset=preprocess_dataset(train_dataset, tokenizer, prompter),
-        eval_dataset=preprocess_dataset(validation_dataset, tokenizer, prompter),
+        eval_dataset=None if full_dataset else eval_dataset,
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits(threshold, token_ids),
         weights=weights,
         token_ids=token_ids,
     )
     trainer.train()
+    if full_dataset:
+        trainer.eval_dataset = eval_dataset
+    log_metrics_mlflow(
+        trainer.evaluate(),
+        {
+            "class_weights": class_weights,
+            "sample": sample,
+            "threshold": threshold,
+            "prompter": None if prompter is None else prompter("<PLACEHOLDER>"),
+        },
+        arguments,
+        model,
+        tokenizer,
+        not full_dataset,
+    )
 
 
 def train_classification(
@@ -95,6 +115,7 @@ def train_classification(
         class_weights,
         sample,
         None,
+        full_dataset,
     )
 
 
@@ -128,4 +149,5 @@ def train_detection(
         class_weights,
         sample,
         threshold,
+        full_dataset,
     )

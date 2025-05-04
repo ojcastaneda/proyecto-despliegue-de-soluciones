@@ -68,11 +68,15 @@ def run_detection():
     model, tokenizer = detection_model(model_name)
     # train_detection(model, tokenizer, arguments, full_dataset=True)
     train_detection(
+        model, tokenizer, arguments, full_dataset=False, sample="under", threshold=0.75
+    )
+    model, tokenizer = detection_model(model_name)
+    train_detection(
         model, tokenizer, arguments, full_dataset=True, sample="under", threshold=0.75
     )
-    path = f"./models/finiteautomata/detection"
-    save_model(model, path)
-    model, _ = load_model(model_name, path)
+    # path = f"./models/finiteautomata/detection"
+    # save_model(model, path)
+    # model, _ = load_model(model_name, path)
     # print(predict_detection(model, tokenizer, prompts, arguments))
 
 
