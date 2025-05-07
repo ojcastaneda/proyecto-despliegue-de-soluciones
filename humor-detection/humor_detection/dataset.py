@@ -149,10 +149,7 @@ class TrainMultilingual(FinalDatasetProcessor):
 
     def preprocess(self):
         return concat(
-            [
-                load_csv(HAHATrain),
-                load_csv(StupidStuff),
-            ],
+            [load_csv(HAHATrain), load_csv(StupidStuff)],
             ignore_index=True,
         ).drop_duplicates(subset=["text"], keep=False)
 

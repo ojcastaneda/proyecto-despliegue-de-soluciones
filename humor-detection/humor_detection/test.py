@@ -1,11 +1,5 @@
 from .dataset import Test, load_csv
-from .utils import (
-    CustomTrainer,
-    log_metrics_mlflow,
-    optimize_arguments,
-    preprocess_logits,
-    setup,
-)
+from .utils import CustomTrainer, log_metrics_mlflow
 from pandas import DataFrame
 from peft import PeftModel
 from transformers.modeling_utils import PreTrainedModel
@@ -22,20 +16,27 @@ def test(
     prompter: Callable[[str], str] | None,
     threshold: float | None,
 ):
-    optimize_arguments(arguments, model)
-    token_ids, data_collator, preprocess_dataset, compute_metrics = setup(
-        model, tokenizer, arguments
-    )
     trainer = CustomTrainer(
         model,
+        tokenizer,
         arguments,
-        data_collator,
-        eval_dataset=preprocess_dataset(dataset, tokenizer, prompter),
-        compute_metrics=compute_metrics,
-        preprocess_logits_for_metrics=preprocess_logits(threshold, token_ids),
-        token_ids=token_ids,
+        eval_dataset=dataset,
+        prompter=prompter,
+        threshold=threshold,
     )
-    log_metrics_mlflow(trainer.evaluate(), {}, arguments, model, tokenizer, False)
+    output = trainer.evaluate()
+    log_metrics_mlflow(
+        output,
+        {
+            "threshold": threshold,
+            "prompter": None if prompter is None else repr(prompter("<PLACEHOLDER>")),
+        },
+        arguments,
+        model,
+        tokenizer,
+        False,
+    )
+    return output
 
 
 def test_classification(

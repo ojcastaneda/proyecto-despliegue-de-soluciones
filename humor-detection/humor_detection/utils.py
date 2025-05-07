@@ -1,11 +1,9 @@
-from .decoder import (
-    preprocess_logits as preprocess_decoder_logits,
-    setup as setup_decoder,
-)
-from .encoder import (
-    preprocess_logits as preprocess_encoder_logits,
-    setup as setup_encoder,
-)
+from copy import deepcopy
+from typing import Callable, Literal
+from numpy import array, max
+from numpy.typing import NDArray
+from pandas import DataFrame
+from sklearn.metrics import classification_report
 from datetime import datetime
 from mlflow import (
     end_run,
@@ -16,7 +14,7 @@ from mlflow import (
     start_run,
 )
 from peft import PeftModel
-from torch import Tensor, arange, full
+from torch import Tensor, arange, full, tensor
 from torch.nn import CrossEntropyLoss
 from torch.nn.functional import pad
 from transformers.modeling_utils import PreTrainedModel
@@ -40,48 +38,100 @@ def set_random_seeds(seed=79):
 
 set_random_seeds()
 
+best_model_metrics = {
+    "macro_f1": "macro_avg_f1-score",
+    "weighted_f1": "weighted_avg_f1-score",
+    "accuracy": "accuracy",
+}
+
 
 class CustomTrainer(Trainer):
+    train_logs: dict[str, list[float]] | None = None
+    eval_metrics: dict[str, float] | None = None
+    best_model: dict | None = None
+    best_model_metric: str | None
+    token_ids: NDArray | None = None
+
     def __init__(
         self,
         model: PreTrainedModel | PeftModel,
-        *args,
-        weights: Tensor | None = None,
-        token_ids: Tensor | None,
+        tokenizer: PreTrainedTokenizerBase,
+        arguments: TrainingArguments,
+        train_dataset: DataFrame | None = None,
+        eval_dataset: DataFrame | None = None,
+        prompter: Callable[[str], str] | None = None,
+        best_model_metric: Literal["macro_f1", "weighted_f1", "accuracy"] | None = None,
+        class_weights: list[float] | None = None,
+        threshold: float | None = None,
         **kwargs,
     ):
-        super().__init__(model, *args, **kwargs)
-        self.loss_function = CrossEntropyLoss(weights)
-        if token_ids is None:
-            self.token_ids = None
+        is_prediction = train_dataset is None and eval_dataset is None
+        optimize_arguments(arguments, model, is_prediction)
+        classes: list[str] | None = model.config.classes if hasattr(model.config, "classes") else None  # type: ignore
+        if class_weights is not None:
+            weights: list[float] = [0.0] * (
+                model.config.num_labels if classes is None else len(classes)  # type: ignore
+            )
+            for i in range(len(class_weights)):
+                weights[i] = float(class_weights[i])
+            self.loss_function = CrossEntropyLoss(tensor(weights))
         else:
-            self.token_ids = token_ids
+            self.loss_function = CrossEntropyLoss()
+        self.best_model_metric = best_model_metrics.get(best_model_metric or "", None)
+        if classes is None:
+            from .encoder import compute_metrics, preprocess_dataset
+
+            compute_metrics = compute_metrics(threshold)
+            self.preprocess_dataset = preprocess_dataset(tokenizer, prompter)
+        else:
+            from .decoder import (
+                LastTokenCollator,
+                compute_metrics,
+                preprocess_dataset,
+                preprocess_logits,
+            )
+
+            kwargs["data_collator"] = LastTokenCollator(tokenizer, mlm=False)
+            self.token_ids = array(
+                [
+                    tokenizer.encode(token, add_special_tokens=False)[0]
+                    for token in classes
+                ]
+            )
             self.lookup_token = full((max(self.token_ids) + 1,), -100)  # type: ignore
             self.lookup_token[self.token_ids] = arange(len(self.token_ids))
+            compute_metrics = compute_metrics(self.lookup_token.numpy(), threshold)
             model.loss_function = self.decoder_loss_function  # type: ignore
-
-    def decoder_loss_function(
-        self,
-        logits: Tensor,
-        labels: Tensor,
-        vocab_size: int,
-        shift_labels: Tensor | None = None,
-        **kwargs,
-    ) -> Tensor:
-        if shift_labels is None:
-            labels = pad(labels, (0, 1), value=-100)
-            shift_labels = labels[..., 1:].contiguous()
-        logits = logits[..., self.token_ids]
-        mask = shift_labels != -100
-        shift_labels[mask] = self.lookup_token[shift_labels[mask]]
-        return self.loss_function(
-            logits.view(-1, logits.shape[-1]), shift_labels.view(-1)
+            self.preprocess_dataset = preprocess_dataset(tokenizer, prompter, classes)
+            kwargs["preprocess_logits_for_metrics"] = preprocess_logits(self.token_ids)
+        if train_dataset is not None:
+            kwargs["train_dataset"] = self.preprocess_dataset(train_dataset)
+        if eval_dataset is not None:
+            kwargs["eval_dataset"] = self.preprocess_dataset(eval_dataset)
+        super().__init__(
+            model,
+            arguments,
+            compute_metrics=None if is_prediction else compute_metrics,
+            processing_class=tokenizer,
+            **kwargs,
         )
 
     def train(self, *args, **kwargs):
+        self.best_model = None
+        self.train_logs = {
+            "train_loss": [],
+            "loss": [],
+            "accuracy": [],
+            "macro_f1": [],
+            "weighted_f1": [],
+        }
+        self.eval_metrics = {}
         if self.loss_function.weight is not None:
             self.loss_function.weight = self.loss_function.weight.to(self.args.device)
-        return super().train(*args, **kwargs)
+        output = super().train(*args, **kwargs), self.train_logs, self.eval_metrics
+        if self.best_model is not None:
+            self.model.load_state_dict(self.best_model)
+        return output
 
     def compute_loss(
         self,
@@ -101,84 +151,126 @@ class CustomTrainer(Trainer):
 
         return super().compute_loss(model, inputs, return_outputs, num_items_in_batch)
 
+    def log(self, logs: dict[str, float], start_time: float | None = None):
+        output = super().log(logs, start_time)
+        if self.train_logs is None or self.eval_metrics is None:
+            return output
+        if "loss" in logs:
+            self.train_logs["train_loss"].append(logs["loss"])
+        if "eval_accuracy" in logs:
+            self.train_logs["loss"].append(logs["eval_loss"])
+            self.train_logs["accuracy"].append(logs["eval_accuracy"])
+            self.train_logs["macro_f1"].append(logs["eval_macro_avg_f1-score"])
+            self.train_logs["weighted_f1"].append(logs["eval_weighted_avg_f1-score"])
+            if self.best_model_metric is None:
+                self.eval_metrics = logs
+                return output
+            if (self.best_model_metric not in self.eval_metrics) or (
+                logs[f"eval_{self.best_model_metric}"]
+                > self.eval_metrics[self.best_model_metric]
+            ):
+                self.eval_metrics = {
+                    key.replace("eval_", ""): value for key, value in logs.items()
+                }
+                self.model.cpu()
+                self.best_model = deepcopy(self.model.state_dict())
+                self.model.to(self.args.device)  # type: ignore
+        return output
+
+    def decoder_loss_function(
+        self,
+        logits: Tensor,
+        labels: Tensor,
+        vocab_size: int,
+        shift_labels: Tensor | None = None,
+        **kwargs,
+    ):
+        if shift_labels is None:
+            labels = pad(labels, (0, 1), value=-100)
+            shift_labels = labels[..., 1:].contiguous()
+        logits = logits[..., self.token_ids]
+        mask = shift_labels != -100
+        shift_labels[mask] = self.lookup_token[shift_labels[mask]]
+        return self.loss_function(
+            logits.view(-1, logits.shape[-1]), shift_labels.view(-1)
+        )
+
 
 def optimize_arguments(
-    arguments: TrainingArguments, model: PreTrainedModel | PeftModel
+    arguments: TrainingArguments, model: PreTrainedModel | PeftModel, predict=False
 ):
+    arguments.set_save("no")
+    arguments.set_logging("no" if predict else "epoch")
+    arguments.set_evaluate(
+        "no" if predict else "epoch",
+        batch_size=arguments.per_device_eval_batch_size,
+        accumulation_steps=1,
+        delay=0,
+    )
+    arguments.logging_dir = None
     arguments.report_to = "none"
-    arguments.eval_accumulation_steps = 1
     arguments.gradient_accumulation_steps = 1
     arguments.torch_empty_cache_steps = 1
     arguments.gradient_checkpointing = not isinstance(model, PeftModel)
 
 
-def preprocess_logits(threshold: float | None, token_ids: Tensor | None):
-    if token_ids is None:
-
-        def preprocess(logits: Tensor, target: Tensor):
-            return preprocess_encoder_logits(logits, target, threshold)
-
-        return preprocess
-
-    def preprocess(logits: Tensor, target: Tensor):
-        return preprocess_decoder_logits(token_ids, logits, target, threshold)
-
-    return preprocess
-
-
-def setup(
-    model: PreTrainedModel | PeftModel,
-    tokenizer: PreTrainedTokenizerBase,
-    arguments: TrainingArguments,
-):
-    return (
-        setup_encoder(tokenizer)
-        if hasattr(model, "classifier")
-        else setup_decoder(tokenizer, model.config.classes, arguments)  # type: ignore
-    )
-
-
 def log_metrics_mlflow(
-    metrics: dict[str, float] | dict[str, dict[str, float]],
+    metrics: dict[str, float],
     parameters: dict,
     arguments: TrainingArguments,
     model: PreTrainedModel | PeftModel,
     tokenizer: PreTrainedTokenizerBase,
     train: bool,
 ):
-    set_experiment("train" if train else "test")
-    with start_run(run_name=f"{model.name_or_path}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
-        set_tag("model_name", model.name_or_path)
-        parameters["tokenizer_model"] = tokenizer.name_or_path
-        if hasattr(model, "classifier"):
-            set_tag("model_type", "encoder")
-            classes = model.config.num_labels  # type: ignore
-        else:
-            set_tag("model_type", "decoder")
-            classes = len(model.config.classes)  # type: ignore
-            parameters["classes"] = str(model.config.classes)  # type: ignore
-        set_tag("model_output", "classification" if classes == 5 else "detection")
+    set_experiment(("train" if train else "test") + "_" + str(model.name_or_path))
+    if hasattr(model, "classifier"):
+        model_type = "encoder"
+        classes = model.config.num_labels  # type: ignore
+    else:
+        model_type = "decoder"
+        classes = len(model.config.classes)  # type: ignore
+        parameters["classes"] = str(model.config.classes)  # type: ignore
+    model_output = "classification" if classes == 5 else "detection"
+    time = datetime.now().strftime("%H:%M:%S-%d/%m/%Y")
+    with start_run(run_name=f"{model_type}_{model_output}_{time}"):
+        set_tag("model_type", model_type)
+        set_tag("model_output", model_output)
+        if model.name_or_path != tokenizer.name_or_path:
+            parameters["tokenizer_model"] = tokenizer.name_or_path
         default_arguments = TrainingArguments()
         optimize_arguments(default_arguments, model)
         default_arguments = default_arguments.to_dict()
         log_params(
-            {f"configuration__{key}": str(value) for key, value in parameters.items()}
+            {f"configuration_{key}": str(value) for key, value in parameters.items()}
         )
         log_params(
             {
-                f"trainer__{key}": str(value)
+                f"trainer_{key}": str(value)
                 for key, value in arguments.to_dict().items()
                 if value != default_arguments[key]
             }
         )
-        for category in metrics:
-            category_metrics = metrics[category]
-            if not isinstance(category_metrics, dict):
-                if category == "eval_loss":
-                    log_metric(f"loss", category_metrics)
-                continue
-            for metric in category_metrics:
-                if metric.endswith("support"):
-                    continue
-                log_metric(f"{category}__{metric}", category_metrics[metric])
+        for key in metrics:
+            if key.endswith(("accuracy", "f1-score", "loss", "precision", "recall")):
+                log_metric(key.replace("eval_", ""), metrics[key])
         end_run()
+
+
+def calculate_metrics(labels: list[int] | NDArray, predictions: list[int] | NDArray):
+    metrics = classification_report(
+        labels,
+        predictions,
+        output_dict=True,
+        zero_division=0,
+    )
+    flatten = {}
+    if isinstance(metrics, str):
+        return flatten
+    for category in metrics:
+        metric = metrics[category]
+        if not isinstance(metric, dict):
+            flatten[category.replace(" ", "_")] = metric
+            continue
+        for key in metric:
+            flatten[f"{category}_{key}".replace(" ", "_")] = metric[key]
+    return flatten

@@ -1,8 +1,9 @@
 from .decoder import predict as predict_decoder
 from .encoder import predict as predict_encoder
-from .utils import CustomTrainer, optimize_arguments, setup
+from .utils import CustomTrainer
 from pandas import DataFrame
 from peft import PeftModel
+from scipy.special import softmax
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
@@ -17,26 +18,25 @@ def predict(
     prompter: Callable[[str], str] | None,
     threshold: float | None,
 ):
-    optimize_arguments(arguments, model)
-    token_ids, data_collator, preprocess_dataset, _ = setup(model, tokenizer, arguments)
-    data = preprocess_dataset(
-        DataFrame(
-            {
-                "text": prompts,
-                "score": [0 if token_ids is None else ""] * len(prompts),
-            }
-        ),
-        tokenizer,
-        prompter,
+    trainer = CustomTrainer(model, tokenizer, arguments, prompter=prompter)
+    prediction = trainer.predict(
+        trainer.preprocess_dataset(
+            DataFrame({"text": prompts, "score": [0] * len(prompts)})
+        )  # type: ignore
     )
-    prediction = CustomTrainer(
-        model, arguments, data_collator, eval_dataset=data, token_ids=token_ids
-    ).predict(
-        data  # type: ignore
-    )
-    if token_ids is None:
-        return predict_encoder(prediction, threshold)
-    return predict_decoder(prediction, tokenizer, token_ids, threshold)
+    if trainer.token_ids is None:
+        logits = prediction.predictions
+        labels = predict_encoder(prediction, threshold)
+    else:
+        labels, logits = predict_decoder(
+            prediction, trainer.lookup_token.cpu().numpy(), threshold
+        )
+    output = {
+        f"score_{i}": list(col)
+        for i, col in enumerate(zip(*softmax(logits, -1).tolist()))
+    }
+    output["labels"] = labels.tolist()
+    return DataFrame(output)
 
 
 def predict_classification(
