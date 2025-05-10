@@ -1,15 +1,10 @@
 from .dataset import Test, Train, TrainMultilingual, load_csv
-from .utils import (
-    CustomTrainer,
-    log_metrics_mlflow,
-    optimize_arguments,
-    preprocess_logits,
-    setup,
-)
+from .decoder import save_model as save_decoder
+from .encoder import save_model as save_encoder
+from .utils import CustomTrainer, log_metrics_mlflow
 from pandas import DataFrame, concat
 from peft import PeftModel
 from sklearn.model_selection import train_test_split
-from torch import tensor
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
@@ -28,8 +23,9 @@ def train(
     sample: Literal["under", "over", False],
     threshold: float | None,
     full_dataset: bool,
+    best_model_metric: Literal["macro_f1", "weighted_f1", "accuracy"],
+    save_path: str | None,
 ):
-    optimize_arguments(arguments, model)
     if sample:
         if sample == "under":
             count = train_dataset["score"].value_counts().min()
@@ -43,47 +39,36 @@ def train(
                 for _, group in train_dataset.groupby("score")
             ]  # type: ignore
         ).reset_index(drop=True)
-    token_ids, data_collator, preprocess_dataset, compute_metrics = setup(
-        model, tokenizer, arguments
-    )
-    weights = None
-    if class_weights is not None:
-        weights = [0.0] * (
-            model.config.num_labels if token_ids is None else len(model.config.classes)  # type: ignore
-        )
-        for i in range(len(class_weights)):
-            weights[i] = class_weights[i]
-        weights = tensor(weights)
-    eval_dataset = preprocess_dataset(validation_dataset, tokenizer, prompter)
-    if full_dataset:
-        arguments.set_evaluate("no")
     trainer = CustomTrainer(
         model,
+        tokenizer,
         arguments,
-        data_collator,
-        train_dataset=preprocess_dataset(train_dataset, tokenizer, prompter),
-        eval_dataset=None if full_dataset else eval_dataset,
-        compute_metrics=compute_metrics,
-        preprocess_logits_for_metrics=preprocess_logits(threshold, token_ids),
-        weights=weights,
-        token_ids=token_ids,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
+        class_weights=class_weights,
+        prompter=prompter,
+        best_model_metric=best_model_metric,
+        threshold=threshold,
     )
-    trainer.train()
-    if full_dataset:
-        trainer.eval_dataset = eval_dataset
+    _, train_logs, eval_metrics = trainer.train()
     log_metrics_mlflow(
-        trainer.evaluate(),
+        eval_metrics,
         {
             "class_weights": class_weights,
             "sample": sample,
             "threshold": threshold,
-            "prompter": None if prompter is None else prompter("<PLACEHOLDER>"),
+            "prompter": None if prompter is None else repr(prompter("<PLACEHOLDER>")),
         },
         arguments,
         model,
         tokenizer,
-        not full_dataset,
+        "test" if full_dataset else "train",
     )
+    train_logs = DataFrame(train_logs)
+    if save_path is not None:
+        (save_encoder if trainer.token_ids is None else save_decoder)(model, save_path)
+        train_logs.to_csv(f"{save_path}/train_logs.csv", index=False)
+    return train_logs, eval_metrics
 
 
 def train_classification(
@@ -95,6 +80,8 @@ def train_classification(
     prompter: Callable[[str], str] | None = None,
     class_weights: list[float] | None = None,
     sample: Literal["under", "over", False] = False,
+    best_model_metric: Literal["macro_f1", "weighted_f1", "accuracy"] = "macro_f1",
+    save_path: str | None = None,
 ):
     train_dataset = load_csv(
         (TrainMultilingual if english_data else Train).classification_path
@@ -105,7 +92,7 @@ def train_classification(
         train_dataset, validation_dataset = train_test_split(
             train_dataset, test_size=0.2
         )
-    train(
+    return train(
         model,
         tokenizer,
         train_dataset,
@@ -116,6 +103,8 @@ def train_classification(
         sample,
         None,
         full_dataset,
+        best_model_metric,
+        save_path,
     )
 
 
@@ -129,6 +118,8 @@ def train_detection(
     class_weights: list[float] | None = None,
     sample: Literal["under", "over", False] = False,
     threshold: float | None = None,
+    best_model_metric: Literal["macro_f1", "weighted_f1", "accuracy"] = "macro_f1",
+    save_path: str | None = None,
 ):
     train_dataset = load_csv(
         (TrainMultilingual if english_data else Train).detection_path
@@ -139,7 +130,7 @@ def train_detection(
         train_dataset, validation_dataset = train_test_split(
             train_dataset, test_size=0.2
         )
-    train(
+    return train(
         model,
         tokenizer,
         train_dataset,
@@ -150,4 +141,6 @@ def train_detection(
         sample,
         threshold,
         full_dataset,
+        best_model_metric,
+        save_path,
     )

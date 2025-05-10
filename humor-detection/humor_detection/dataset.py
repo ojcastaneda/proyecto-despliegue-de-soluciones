@@ -6,11 +6,12 @@ from typing import Callable
 from pandas import DataFrame, concat, read_csv
 from ydata_profiling import ProfileReport
 
-DATA_FOLDER = "./data"
+DATA_FOLDER = "../data"
 
 CLASSIFICATION_FOLDER = f"{DATA_FOLDER}/classification"
 DETECTION_FOLDER = f"{DATA_FOLDER}/detection"
 PROCESSED_FOLDER = f"{DATA_FOLDER}/processed"
+SYNTHETIC_FOLDER = f"{DATA_FOLDER}/synthetic"
 RAW_FOLDER = f"{DATA_FOLDER}/raw"
 TEST_PATH = f"{DATA_FOLDER}/test.csv"
 
@@ -116,13 +117,32 @@ class Test(FinalDatasetProcessor):
         return dataset[["text", "score"]]
 
 
+class TestExclusive(DatasetProcessor):
+    output_path = f"{SYNTHETIC_FOLDER}/exclusive.csv"
+
+
+class TestLongLengths(DatasetProcessor):
+    output_path = f"{SYNTHETIC_FOLDER}/long_lengths.csv"
+
+
+class TestRepetition(DatasetProcessor):
+    output_path = f"{SYNTHETIC_FOLDER}/repetition.csv"
+
+
+class TestShortLengths(DatasetProcessor):
+    output_path = f"{SYNTHETIC_FOLDER}/short_lengths.csv"
+
+
 class Train(FinalDatasetProcessor):
     output_path = f"{DATA_FOLDER}/train.csv"
     classification_path = f"{CLASSIFICATION_FOLDER}/train.csv"
     detection_path = f"{DETECTION_FOLDER}/train.csv"
 
     def preprocess(self):
-        return load_csv(HAHATrain).drop_duplicates(subset=["text"], keep=False)
+        return concat(
+            [load_csv(HAHATrain), load_csv(f"{DATA_FOLDER}/generated_jokes.csv")],
+            ignore_index=True,
+        ).drop_duplicates(subset=["text"], keep=False)
 
     def preprocess_classification(self):
         return self.transform_classification(load_csv(Train))
@@ -149,10 +169,7 @@ class TrainMultilingual(FinalDatasetProcessor):
 
     def preprocess(self):
         return concat(
-            [
-                load_csv(HAHATrain),
-                load_csv(StupidStuff),
-            ],
+            [load_csv(HAHATrain), load_csv(StupidStuff)],
             ignore_index=True,
         ).drop_duplicates(subset=["text"], keep=False)
 
@@ -229,7 +246,7 @@ class StupidStuff(DatasetProcessor):
             [
                 {"text": item["body"], "score": round(item["rating"])}
                 for item in dataset
-                if item["body"] not in to_remove
+                if item["body"] not in to_remove and len(item["body"]) <= 512
             ]
         ).drop_duplicates(subset=["text"], keep="first")
 
