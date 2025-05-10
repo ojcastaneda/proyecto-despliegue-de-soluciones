@@ -19,17 +19,17 @@ def predict(
     threshold: float | None,
 ):
     trainer = CustomTrainer(model, tokenizer, arguments, prompter=prompter)
-    prediction = trainer.predict(
-        trainer.preprocess_dataset(
-            DataFrame({"text": prompts, "score": [0] * len(prompts)})
-        )  # type: ignore
+    score = 0 if trainer.token_ids is None else None
+    dataset = trainer.preprocess_dataset(
+        DataFrame({"text": prompts, "score": [score] * len(prompts)})
     )
+    prediction = trainer.predict(dataset) # type: ignore
     if trainer.token_ids is None:
         logits = prediction.predictions
         labels = predict_encoder(prediction, threshold)
     else:
         labels, logits = predict_decoder(
-            prediction, trainer.lookup_token.cpu().numpy(), threshold
+            dataset, prediction, trainer.lookup_token.cpu().numpy(), threshold
         )
     output = {
         f"score_{i}": list(col)

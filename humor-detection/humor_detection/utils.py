@@ -91,7 +91,8 @@ class CustomTrainer(Trainer):
                 preprocess_logits,
             )
 
-            kwargs["data_collator"] = LastTokenCollator(tokenizer, mlm=False)
+            if not is_prediction:
+                kwargs["data_collator"] = LastTokenCollator(tokenizer, mlm=False)
             self.token_ids = array(
                 [
                     tokenizer.encode(token, add_special_tokens=False)[0]
@@ -182,14 +183,15 @@ class CustomTrainer(Trainer):
         logits: Tensor,
         labels: Tensor,
         vocab_size: int,
+        ignore_index: int = -100,
         shift_labels: Tensor | None = None,
         **kwargs,
     ):
         if shift_labels is None:
-            labels = pad(labels, (0, 1), value=-100)
+            labels = pad(labels, (0, 1), value=ignore_index)
             shift_labels = labels[..., 1:].contiguous()
         logits = logits[..., self.token_ids]
-        mask = shift_labels != -100
+        mask = shift_labels != ignore_index
         shift_labels[mask] = self.lookup_token[shift_labels[mask]]
         return self.loss_function(
             logits.view(-1, logits.shape[-1]), shift_labels.view(-1)
@@ -218,28 +220,36 @@ def log_metrics_mlflow(
     metrics: dict[str, float],
     parameters: dict,
     arguments: TrainingArguments,
-    model: PreTrainedModel | PeftModel,
-    tokenizer: PreTrainedTokenizerBase,
-    train: bool,
+    model: PreTrainedModel | PeftModel | tuple[str, list[str]],
+    tokenizer: PreTrainedTokenizerBase | None,
+    prefix: str,
 ):
-    set_experiment(("train" if train else "test") + "_" + str(model.name_or_path))
-    if hasattr(model, "classifier"):
-        model_type = "encoder"
-        classes = model.config.num_labels  # type: ignore
-    else:
+    if isinstance(model, tuple):
+        model_name = model[0]
         model_type = "decoder"
-        classes = len(model.config.classes)  # type: ignore
-        parameters["classes"] = str(model.config.classes)  # type: ignore
+        classes = len(model[1])
+        parameters["classes"] = str(model[1])
+    else:
+        model_name = str(model.name_or_path)
+        if hasattr(model, "classifier"):
+            model_type = "encoder"
+            classes = model.config.num_labels  # type: ignore
+        else:
+            model_type = "decoder"
+            classes = len(model.config.classes)  # type: ignore
+            parameters["classes"] = str(model.config.classes)  # type: ignore
+    set_experiment(f"{prefix}_{model_name}")
     model_output = "classification" if classes == 5 else "detection"
+    default_arguments = TrainingArguments()
+    if not isinstance(model, tuple):
+        optimize_arguments(default_arguments, model)
+    default_arguments = default_arguments.to_dict()
+    if tokenizer is not None and model_name != tokenizer.name_or_path:
+        parameters["tokenizer_model"] = tokenizer.name_or_path
     time = datetime.now().strftime("%H:%M:%S-%d/%m/%Y")
     with start_run(run_name=f"{model_type}_{model_output}_{time}"):
         set_tag("model_type", model_type)
         set_tag("model_output", model_output)
-        if model.name_or_path != tokenizer.name_or_path:
-            parameters["tokenizer_model"] = tokenizer.name_or_path
-        default_arguments = TrainingArguments()
-        optimize_arguments(default_arguments, model)
-        default_arguments = default_arguments.to_dict()
         log_params(
             {f"configuration_{key}": str(value) for key, value in parameters.items()}
         )

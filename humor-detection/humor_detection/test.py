@@ -1,4 +1,11 @@
-from .dataset import Test, load_csv
+from .dataset import (
+    Test,
+    TestExclusive,
+    TestLongLengths,
+    TestRepetition,
+    TestShortLengths,
+    load_csv,
+)
 from .utils import CustomTrainer, log_metrics_mlflow
 from pandas import DataFrame
 from peft import PeftModel
@@ -15,6 +22,7 @@ def test(
     arguments: TrainingArguments,
     prompter: Callable[[str], str] | None,
     threshold: float | None,
+    prefix: str,
 ):
     trainer = CustomTrainer(
         model,
@@ -34,7 +42,7 @@ def test(
         arguments,
         model,
         tokenizer,
-        False,
+        prefix,
     )
     return output
 
@@ -46,7 +54,13 @@ def test_classification(
     prompter: Callable[[str], str] | None = None,
 ):
     return test(
-        model, tokenizer, load_csv(Test.classification_path), arguments, prompter, None
+        model,
+        tokenizer,
+        load_csv(Test.classification_path),
+        arguments,
+        prompter,
+        None,
+        "test",
     )
 
 
@@ -58,5 +72,75 @@ def test_detection(
     threshold: float | None = None,
 ):
     return test(
-        model, tokenizer, load_csv(Test.detection_path), arguments, prompter, threshold
+        model,
+        tokenizer,
+        load_csv(Test.detection_path),
+        arguments,
+        prompter,
+        threshold,
+        "test",
+    )
+
+
+def test_exclusive(
+    model: PreTrainedModel | PeftModel,
+    tokenizer: PreTrainedTokenizerBase,
+    arguments: TrainingArguments,
+    prompter: Callable[[str], str] | None = None,
+    threshold: float | None = None,
+):
+    return test(
+        model,
+        tokenizer,
+        load_csv(TestExclusive),
+        arguments,
+        prompter,
+        threshold,
+        "test_lengths",
+    )
+
+
+def test_lengths(
+    model: PreTrainedModel | PeftModel,
+    tokenizer: PreTrainedTokenizerBase,
+    arguments: TrainingArguments,
+    prompter: Callable[[str], str] | None = None,
+    threshold: float | None = None,
+):
+    long = test(
+        model,
+        tokenizer,
+        load_csv(TestLongLengths),
+        arguments,
+        prompter,
+        threshold,
+        "test_long_lengths",
+    )
+    short = test(
+        model,
+        tokenizer,
+        load_csv(TestShortLengths),
+        arguments,
+        prompter,
+        threshold,
+        "test_short_lengths",
+    )
+    return short, long
+
+
+def test_repetition(
+    model: PreTrainedModel | PeftModel,
+    tokenizer: PreTrainedTokenizerBase,
+    arguments: TrainingArguments,
+    prompter: Callable[[str], str] | None = None,
+    threshold: float | None = None,
+):
+    return test(
+        model,
+        tokenizer,
+        load_csv(TestRepetition),
+        arguments,
+        prompter,
+        threshold,
+        "test_repetition",
     )

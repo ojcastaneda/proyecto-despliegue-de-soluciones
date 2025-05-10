@@ -175,6 +175,6 @@ cython_debug/
 
 /models
 temp
-/train_checkpoints
-/trainer_output
-/mlruns
+**/train_checkpoints
+**/trainer_output
+**/mlruns

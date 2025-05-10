@@ -37,25 +37,18 @@ def classification_model(
     model_name: str,
     lora_configuration: LoraConfig | None = None,
     tokenizer_name: str | None = None,
-    classes: list[str] | None = None,
+    classes: list[str] = ["1", "2", "3", "4", "5"],
 ):
-    return create_model(
-        model_name,
-        lora_configuration,
-        tokenizer_name,
-        classes or ["1", "2", "3", "4", "5"],
-    )
+    return create_model(model_name, lora_configuration, tokenizer_name, classes)
 
 
 def detection_model(
     model_name: str,
     lora_configuration: LoraConfig | None = None,
     tokenizer_name: str | None = None,
-    classes: list[str] | None = None,
+    classes: list[str] = ["0", "1"],
 ):
-    return create_model(
-        model_name, lora_configuration, tokenizer_name, classes or ["0", "1"]
-    )
+    return create_model(model_name, lora_configuration, tokenizer_name, classes)
 
 
 def load_model(model_name: str, path: str, tokenizer_name: str | None = None):
@@ -86,25 +79,33 @@ def compute_metrics(lookup_token: NDArray, threshold: float | None):
     return _compute_metrics
 
 
-def extract_predictions(label_ids: NDArray, prediction: NDArray, lookup_token: NDArray):
-    batch_size = label_ids.shape[0]
-    mask = label_ids != -100
+def extract_predictions(
+    label_ids: NDArray | list[list[int]], prediction: NDArray, lookup_token: NDArray
+):
+    batch_size = len(label_ids)
     labels = []
     predictions = []
+    is_prediction = isinstance(label_ids, list)
+    shift_correction = int(is_prediction)
     for i in range(batch_size):
-        positive_indices = where(mask[i])[0]
-        index = 0 if len(positive_indices) < 0 else positive_indices[-1]
-        labels.append(label_ids[i, index])
-        predictions.append(prediction[i, index])
-    return lookup_token[array(labels)], array(predictions)
+        batch_labels = label_ids[i]
+        if is_prediction:
+            batch_labels = array(batch_labels)
+        positive_indices = where(batch_labels != -100)[0]
+        index = 0 if len(positive_indices) < 1 else positive_indices[-1]
+        labels.append(batch_labels[index])
+        predictions.append(prediction[i, index - shift_correction])
+    labels = array(labels)
+    return labels if is_prediction else lookup_token[labels], array(predictions)
 
 
 def predict(
+    original: Dataset,
     prediction: PredictionOutput,
     lookup_token: NDArray,
     threshold: float | None,
 ):
-    _, predictions = extract_predictions(prediction.label_ids, prediction.predictions, lookup_token)  # type: ignore
+    _, predictions = extract_predictions(original["input_ids"], prediction.predictions, lookup_token)  # type: ignore
     return (compute_labels(predictions, threshold), predictions)
 
 
@@ -124,7 +125,7 @@ def preprocess_dataset(
         tokenized = tokenizer(
             texts, padding=False, truncation=True, add_special_tokens=False
         )
-        score: list[list[int]] = tokenizer(
+        scores: list[list[int]] = tokenizer(
             examples["score"], max_length=1, truncation=True, add_special_tokens=False
         )[
             "input_ids"
@@ -133,16 +134,23 @@ def preprocess_dataset(
         attention_mask: list[list[int]] = tokenized["attention_mask"]  # type: ignore
         max_length = tokenizer.model_max_length or 10000
         for i in range(len(input_ids)):
-            input_ids[i].append(score[i][0])
+            input_ids[i].insert(0, tokenizer.bos_token_id)  # type: ignore
+            attention_mask[i].append(1)
+            if scores[i][0] == tokenizer.eos_token_id:
+                continue
+            input_ids[i].append(scores[i][0])
             attention_mask[i].append(1)
             if len(input_ids[i]) > max_length:
                 input_ids[i] = input_ids[i][1:]
                 attention_mask[i] = attention_mask[i][1:]
         return tokenized
 
+    def score_to_class(value: str):
+        return tokenizer.eos_token if value is None else classes[int(value)]
+
     def _preprocess_dataset(dataset: DataFrame):
         if "score" in dataset.columns:
-            dataset["score"] = dataset["score"].astype(int).map(lambda x: classes[x])
+            dataset["score"] = dataset["score"].map(score_to_class)
         return Dataset.from_pandas(dataset).map(tokenize_function, batched=True)
 
     return _preprocess_dataset

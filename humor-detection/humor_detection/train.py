@@ -62,7 +62,7 @@ def train(
         arguments,
         model,
         tokenizer,
-        not full_dataset,
+        "test" if full_dataset else "train",
     )
     train_logs = DataFrame(train_logs)
     if save_path is not None:
