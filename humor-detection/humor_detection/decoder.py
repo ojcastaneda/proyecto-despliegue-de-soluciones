@@ -86,7 +86,7 @@ def extract_predictions(
     labels = []
     predictions = []
     is_prediction = isinstance(label_ids, list)
-    shift_correction = int(is_prediction)
+    shift_correction = int(not is_prediction)
     for i in range(batch_size):
         batch_labels = label_ids[i]
         if is_prediction:

@@ -13,6 +13,7 @@ from mlflow import (
     set_tag,
     start_run,
 )
+from os.path import abspath, dirname, join
 from peft import PeftModel
 from torch import Tensor, arange, full, tensor
 from torch.nn import CrossEntropyLoss
@@ -21,6 +22,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.trainer import Trainer
 from transformers.training_args import TrainingArguments
+import sys
 
 
 def set_random_seeds(seed=79):
@@ -282,3 +284,10 @@ def calculate_metrics(labels: list[int] | NDArray, predictions: list[int] | NDAr
         for key in metric:
             flatten[f"{category}_{key}".replace(" ", "_")] = metric[key]
     return flatten
+
+def relative_path(path: str):
+    try:
+        get_ipython  # type: ignore
+        return path
+    except NameError:
+        return join(dirname(abspath(sys.argv[0])), path)

@@ -8,7 +8,7 @@ from humor_detection.test import (
 )
 from humor_detection.train import train_classification, train_detection
 from humor_detection.predict import predict_classification, predict_detection
-from humor_detection.utils import set_random_seeds
+from humor_detection.utils import relative_path, set_random_seeds
 from pprint import pprint
 from transformers.training_args import TrainingArguments
 # from transformers.optimization import get_cosine_with_min_lr_schedule_with_warmup
@@ -18,7 +18,7 @@ set_random_seeds()
 # Nombre del modelo en HuggingFace
 model_name = "distilbert/distilbert-base-multilingual-cased"
 # Carpeta para agrupar y guardar modelos de clasificación y detección
-save_path = "../models/distilbert"
+save_path = relative_path("../models/distilbert")
 # Argumentos que nunca van a cambiar en entrenamiento/pruebas, dependen de sus GPUs
 default_arguments = {
     "bf16": True,

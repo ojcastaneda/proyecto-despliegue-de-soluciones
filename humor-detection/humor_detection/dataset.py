@@ -1,20 +1,15 @@
 from sklearn.model_selection import train_test_split
-from .utils import set_random_seeds
+from .utils import relative_path, set_random_seeds
 from abc import ABC, abstractmethod
 from json import load
 from os import makedirs
-from os.path import abspath, dirname, join
+from os.path import dirname
 from random import choices, randint
 from typing import Callable
 from pandas import DataFrame, concat, read_csv
 from ydata_profiling import ProfileReport
-import sys
 
-try:
-    get_ipython  # type: ignore
-    DATA_FOLDER = "../data"
-except NameError:
-    DATA_FOLDER = join(dirname(abspath(sys.argv[0])), "..", "data")
+DATA_FOLDER = relative_path("../data")
 
 CLASSIFICATION_FOLDER = f"{DATA_FOLDER}/classification"
 DETECTION_FOLDER = f"{DATA_FOLDER}/detection"

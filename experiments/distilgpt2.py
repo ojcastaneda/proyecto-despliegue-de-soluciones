@@ -8,14 +8,14 @@ from humor_detection.test import (
 )
 from humor_detection.train import train_classification, train_detection
 from humor_detection.predict import predict_classification, predict_detection
-from humor_detection.utils import set_random_seeds
+from humor_detection.utils import relative_path, set_random_seeds
 from pprint import pprint
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
 
 set_random_seeds()
 model_name = "distilbert/distilgpt2"
-save_path = "../models/distilgpt2"
+save_path = relative_path("../models/distilgpt2")
 default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
@@ -77,7 +77,7 @@ def run_classification(full_dataset: bool, train: bool):
 
 def run_detection(full_dataset: bool, train: bool, threshold: float | None):
     def prompter(input: str):
-        return f"Detect if the following text is humor 0 or not 1:\n{input}\nScore:\n"
+        return f"Detect if the following text is humor 1 or not 0:\n{input}\nScore:\n"
 
     arguments = TrainingArguments(
         num_train_epochs=3,
@@ -108,7 +108,7 @@ def run_detection(full_dataset: bool, train: bool, threshold: float | None):
 
 
 if __name__ == "__main__":
-    # run_classification(True, False)
-    # run_classification(True, True)
+    run_classification(True, False)
+    run_classification(True, True)
     run_detection(True, False, None)
-    # run_detection(True, True, None)
+    run_detection(True, True, None)
