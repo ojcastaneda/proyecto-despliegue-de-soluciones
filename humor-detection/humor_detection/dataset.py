@@ -1,26 +1,32 @@
+from sklearn.model_selection import train_test_split
+from .utils import set_random_seeds
 from abc import ABC, abstractmethod
 from json import load
 from os import makedirs
-from os.path import exists, dirname
+from os.path import abspath, dirname, join
+from random import choices, randint
 from typing import Callable
 from pandas import DataFrame, concat, read_csv
 from ydata_profiling import ProfileReport
+import sys
 
-DATA_FOLDER = "../data"
+try:
+    get_ipython  # type: ignore
+    DATA_FOLDER = "../data"
+except NameError:
+    DATA_FOLDER = join(dirname(abspath(sys.argv[0])), "..", "data")
 
 CLASSIFICATION_FOLDER = f"{DATA_FOLDER}/classification"
 DETECTION_FOLDER = f"{DATA_FOLDER}/detection"
 PROCESSED_FOLDER = f"{DATA_FOLDER}/processed"
-SYNTHETIC_FOLDER = f"{DATA_FOLDER}/synthetic"
 RAW_FOLDER = f"{DATA_FOLDER}/raw"
-TEST_PATH = f"{DATA_FOLDER}/test.csv"
 
 
 class DatasetProcessor(ABC):
     output_path: str
 
     @abstractmethod
-    def preprocess(self) -> DataFrame:
+    def preprocess(self, **kwargs) -> DataFrame:
         pass
 
     def process(
@@ -28,17 +34,16 @@ class DatasetProcessor(ABC):
         output_path: str | None = None,
         preprocess: Callable[[], DataFrame] | None = None,
         report=True,
+        **kwargs,
     ):
         if output_path is None:
             output_path = self.output_path
         makedirs(dirname(output_path), exist_ok=True)
         if preprocess is None:
             preprocess = self.preprocess
-        if not exists(output_path):
-            dataset = preprocess()
-            dataset.to_csv(output_path, index=False)
-            return ProfileReport(dataset) if report else None
-        return ProfileReport(load_csv(output_path)) if report else None
+        dataset = preprocess(**kwargs)
+        dataset.to_csv(output_path, index=False)
+        return ProfileReport(dataset) if report else None
 
 
 class FinalDatasetProcessor(DatasetProcessor):
@@ -64,120 +69,60 @@ class FinalDatasetProcessor(DatasetProcessor):
         return base, classification, detection
 
 
-class Test(FinalDatasetProcessor):
-    output_path = f"{DATA_FOLDER}/test_no_labels.csv"
-    classification_path = f"{CLASSIFICATION_FOLDER}/test.csv"
-    detection_path = f"{DETECTION_FOLDER}/test.csv"
+class BaseTrain(DatasetProcessor):
+    output_path = f"{PROCESSED_FOLDER}/train.csv"
 
     def preprocess(self):
         return concat(
-            [load_csv(SpanishJokes), load_csv(HAHATest)],
+            [load_csv(HAHATrain), load_csv(f"{PROCESSED_FOLDER}/generated_jokes.csv")],
             ignore_index=True,
         ).drop_duplicates(subset=["text"], keep=False)
 
-    def preprocess_classification(self):
-        dataset = load_csv(TEST_PATH)
-        id_counts = dataset["id"].value_counts()
-        dataset = dataset[dataset["id"].isin(id_counts[id_counts >= 4].index)]
 
-        def get_majority_sentiment(x):
-            non_zeros = x[x != 0]
-            if len(non_zeros) == 0:
-                return 0
-            value_counts = non_zeros.value_counts()
-            max_count = value_counts.max()
-            return (
-                value_counts[value_counts == max_count].index[0]
-                if (max_count / len(non_zeros)) > 0.5
-                else non_zeros.max()
+class Exclusive(DatasetProcessor):
+    output_path = f"{DETECTION_FOLDER}/test_exclusive.csv"
+    train_path = f"{PROCESSED_FOLDER}/train_exclusive.csv"
+
+    def preprocess(
+        self,
+        exclusive_humor: list[str],
+        exclusive_non_humor: list[str],
+    ):
+        set_random_seeds()
+        self.generate(exclusive_humor, exclusive_non_humor, load_csv(BaseTrain)).to_csv(
+            self.train_path, index=False
+        )
+        return self.generate(
+            exclusive_humor, exclusive_non_humor, load_csv(Test.detection_path)
+        )
+
+    def generate(
+        self,
+        exclusive_humor: list[str],
+        exclusive_non_humor: list[str],
+        original_dataset: DataFrame,
+    ):
+        data = []
+        for _ in range(1100):
+            row = original_dataset.sample(n=1).iloc[0]
+            score = row["score"]
+            distractions = exclusive_humor if score == 0 else exclusive_non_humor
+            tokens = [row["text"]]
+            tokens.extend(
+                choices(distractions, k=randint(1, min(3, len(distractions))))
             )
-
-        dataset = dataset.groupby("id").agg(
-            text=("text", "first"),
-            zero_count=("sentiment", lambda x: (x == 0).sum()),
-            non_zero_count=("sentiment", lambda x: (x != 0).sum()),
-            majority_sentiment=("sentiment", get_majority_sentiment),
-        )
-        dataset = dataset[dataset["non_zero_count"] >= dataset["zero_count"]]
-        dataset["score"] = (dataset["majority_sentiment"] - 1).astype(int)
-        return dataset[["text", "score"]]
-
-    def preprocess_detection(self):
-        dataset = load_csv(TEST_PATH)
-        id_counts = dataset["id"].value_counts()
-        dataset = dataset[dataset["id"].isin(id_counts[id_counts >= 4].index)]
-        dataset = dataset.groupby("id").agg(
-            text=("text", "first"),
-            zero_count=("sentiment", lambda x: (x == 0).sum()),
-            non_zero_count=("sentiment", lambda x: (x != 0).sum()),
-        )
-        dataset["score"] = (dataset["zero_count"] <= dataset["non_zero_count"]).astype(
-            int
-        )
-        return dataset[["text", "score"]]
+            data.append({"text": " ".join(tokens), "score": score})
+        return DataFrame(data).drop_duplicates(subset=["text"], keep=False)
 
 
-class TestExclusive(DatasetProcessor):
-    output_path = f"{SYNTHETIC_FOLDER}/exclusive.csv"
-
-
-class TestLongLengths(DatasetProcessor):
-    output_path = f"{SYNTHETIC_FOLDER}/long_lengths.csv"
-
-
-class TestRepetition(DatasetProcessor):
-    output_path = f"{SYNTHETIC_FOLDER}/repetition.csv"
-
-
-class TestShortLengths(DatasetProcessor):
-    output_path = f"{SYNTHETIC_FOLDER}/short_lengths.csv"
-
-
-class Train(FinalDatasetProcessor):
-    output_path = f"{DATA_FOLDER}/train.csv"
-    classification_path = f"{CLASSIFICATION_FOLDER}/train.csv"
-    detection_path = f"{DETECTION_FOLDER}/train.csv"
+class LongLengths(DatasetProcessor):
+    output_path = f"{DETECTION_FOLDER}/long_lengths.csv"
 
     def preprocess(self):
-        return concat(
-            [load_csv(HAHATrain), load_csv(f"{DATA_FOLDER}/generated_jokes.csv")],
-            ignore_index=True,
-        ).drop_duplicates(subset=["text"], keep=False)
-
-    def preprocess_classification(self):
-        return self.transform_classification(load_csv(Train))
-
-    def preprocess_detection(self):
-        return self.transform_detection(load_csv(Train))
-
-    @staticmethod
-    def transform_classification(dataset: DataFrame):
-        dataset = dataset[dataset["score"] > 0]
-        dataset.loc[:, "score"] = dataset["score"] - 1
-        return dataset
-
-    @staticmethod
-    def transform_detection(dataset: DataFrame):
-        dataset["score"] = (dataset["score"] != 0).astype(int)
-        return dataset
-
-
-class TrainMultilingual(FinalDatasetProcessor):
-    output_path = f"{DATA_FOLDER}/train_multilingual.csv"
-    classification_path = f"{CLASSIFICATION_FOLDER}/train_multilingual.csv"
-    detection_path = f"{DETECTION_FOLDER}/train_multilingual.csv"
-
-    def preprocess(self):
-        return concat(
-            [load_csv(HAHATrain), load_csv(StupidStuff)],
-            ignore_index=True,
-        ).drop_duplicates(subset=["text"], keep=False)
-
-    def preprocess_classification(self):
-        return Train.transform_classification(load_csv(TrainMultilingual))
-
-    def preprocess_detection(self):
-        return Train.transform_detection(load_csv(TrainMultilingual))
+        set_random_seeds()
+        test_dataset = load_csv(Test.detection_path)
+        text_lengths = test_dataset["text"].str.len()
+        return test_dataset[text_lengths >= text_lengths.quantile(0.9)]  # type: ignore
 
 
 class HAHATest(DatasetProcessor):
@@ -217,6 +162,37 @@ class HAHATrain(DatasetProcessor):
         return result
 
 
+class Repetition(DatasetProcessor):
+    output_path = f"{DETECTION_FOLDER}/test_repetition.csv"
+    train_path = f"{PROCESSED_FOLDER}/train_repetition.csv"
+
+    def preprocess(self, repetition_tokens: list[str], exclusive_humor: list[str]):
+        set_random_seeds()
+        repetition_tokens = list(set(exclusive_humor + repetition_tokens))
+        test = DataFrame(
+            [
+                {
+                    "text": " ".join(choices(repetition_tokens, k=randint(1, 15))),
+                    "score": 0,
+                }
+                for _ in range(2200)
+            ]
+        ).drop_duplicates(subset=["text"], keep=False)
+        test, train = train_test_split(test, test_size=0.5)
+        train.to_csv(self.train_path)
+        return test
+
+
+class ShortLengths(DatasetProcessor):
+    output_path = f"{DETECTION_FOLDER}/short_lengths.csv"
+
+    def preprocess(self):
+        set_random_seeds()
+        test_dataset = load_csv(Test.detection_path)
+        text_lengths = test_dataset["text"].str.len()
+        return test_dataset[text_lengths <= text_lengths.quantile(0.1)]  # type: ignore
+
+
 class SpanishJokes(DatasetProcessor):
     output_path = f"{PROCESSED_FOLDER}/spanish_jokes.csv"
 
@@ -230,7 +206,7 @@ class SpanishJokes(DatasetProcessor):
 class StupidStuff(DatasetProcessor):
     output_path = f"{PROCESSED_FOLDER}/stupid_stuff.csv"
 
-    def preprocess(self) -> DataFrame:
+    def preprocess(self):
         with open(f"{RAW_FOLDER}/stupid_stuff.json", "r") as file:
             dataset = load(file)
         unique_items = {}
@@ -249,6 +225,111 @@ class StupidStuff(DatasetProcessor):
                 if item["body"] not in to_remove and len(item["body"]) <= 512
             ]
         ).drop_duplicates(subset=["text"], keep="first")
+
+
+class Test(FinalDatasetProcessor):
+    output_path = f"{RAW_FOLDER}/test_no_labels.csv"
+    base_path = f"{PROCESSED_FOLDER}/test.csv"
+    classification_path = f"{CLASSIFICATION_FOLDER}/test.csv"
+    detection_path = f"{DETECTION_FOLDER}/test.csv"
+
+    def preprocess(self):
+        return concat(
+            [load_csv(SpanishJokes), load_csv(HAHATest)],
+            ignore_index=True,
+        ).drop_duplicates(subset=["text"], keep=False)
+
+    def preprocess_classification(self):
+        dataset = load_csv(self.base_path)
+        id_counts = dataset["id"].value_counts()
+        dataset = dataset[dataset["id"].isin(id_counts[id_counts >= 4].index)]
+
+        def get_majority_sentiment(x):
+            non_zeros = x[x != 0]
+            if len(non_zeros) == 0:
+                return 0
+            value_counts = non_zeros.value_counts()
+            max_count = value_counts.max()
+            return (
+                value_counts[value_counts == max_count].index[0]
+                if (max_count / len(non_zeros)) > 0.5
+                else non_zeros.max()
+            )
+
+        dataset = dataset.groupby("id").agg(
+            text=("text", "first"),
+            zero_count=("sentiment", lambda x: (x == 0).sum()),
+            non_zero_count=("sentiment", lambda x: (x != 0).sum()),
+            majority_sentiment=("sentiment", get_majority_sentiment),
+        )
+        dataset = dataset[dataset["non_zero_count"] >= dataset["zero_count"]]
+        dataset["score"] = (dataset["majority_sentiment"] - 1).astype(int)
+        return dataset[["text", "score"]]
+
+    def preprocess_detection(self):
+        dataset = load_csv(self.base_path)
+        id_counts = dataset["id"].value_counts()
+        dataset = dataset[dataset["id"].isin(id_counts[id_counts >= 4].index)]
+        dataset = dataset.groupby("id").agg(
+            text=("text", "first"),
+            zero_count=("sentiment", lambda x: (x == 0).sum()),
+            non_zero_count=("sentiment", lambda x: (x != 0).sum()),
+        )
+        dataset["score"] = (dataset["zero_count"] <= dataset["non_zero_count"]).astype(
+            int
+        )
+        return dataset[["text", "score"]]
+
+
+class Train(FinalDatasetProcessor):
+    output_path = f"{DATA_FOLDER}/train.csv"
+    classification_path = f"{CLASSIFICATION_FOLDER}/train.csv"
+    detection_path = f"{DETECTION_FOLDER}/train.csv"
+
+    def preprocess(self):
+        return concat(
+            [
+                load_csv(BaseTrain),
+                load_csv(Repetition.train_path),
+                load_csv(Exclusive.train_path),
+            ],
+            ignore_index=True,
+        ).drop_duplicates(subset=["text"], keep=False)
+
+    def preprocess_classification(self):
+        return self.transform_classification(load_csv(Train))
+
+    def preprocess_detection(self):
+        return self.transform_detection(load_csv(Train))
+
+    @staticmethod
+    def transform_classification(dataset: DataFrame):
+        dataset = dataset[dataset["score"] > 0]
+        dataset.loc[:, "score"] = dataset["score"] - 1
+        return dataset
+
+    @staticmethod
+    def transform_detection(dataset: DataFrame):
+        dataset["score"] = (dataset["score"] != 0).astype(int)
+        return dataset
+
+
+class TrainMultilingual(FinalDatasetProcessor):
+    output_path = f"{DATA_FOLDER}/train_multilingual.csv"
+    classification_path = f"{CLASSIFICATION_FOLDER}/train_multilingual.csv"
+    detection_path = f"{DETECTION_FOLDER}/train_multilingual.csv"
+
+    def preprocess(self):
+        return concat(
+            [load_csv(Train), load_csv(StupidStuff)],
+            ignore_index=True,
+        ).drop_duplicates(subset=["text"], keep=False)
+
+    def preprocess_classification(self):
+        return Train.transform_classification(load_csv(TrainMultilingual))
+
+    def preprocess_detection(self):
+        return Train.transform_detection(load_csv(TrainMultilingual))
 
 
 def load_csv(path: str | type[DatasetProcessor]):

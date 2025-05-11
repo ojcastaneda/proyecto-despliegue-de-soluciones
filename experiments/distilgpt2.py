@@ -1,5 +1,11 @@
 from humor_detection.decoder import classification_model, detection_model
-from humor_detection.test import test_classification, test_detection
+from humor_detection.test import (
+    test_classification,
+    test_detection,
+    test_exclusive,
+    test_lengths,
+    test_repetition,
+)
 from humor_detection.train import train_classification, train_detection
 from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import set_random_seeds
@@ -18,6 +24,7 @@ default_arguments = {
     "per_device_train_batch_size": 40,
 }
 prompts = [
+    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso."
     "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",
     "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",
     "The brain surgeon changed my life. He really opened my mind.",
@@ -70,7 +77,7 @@ def run_classification(full_dataset: bool, train: bool):
 
 def run_detection(full_dataset: bool, train: bool, threshold: float | None):
     def prompter(input: str):
-        return f"Detect if the following text is humor 1 or not 0:\n{input}\nScore:\n"
+        return f"Detect if the following text is humor 0 or not 1:\n{input}\nScore:\n"
 
     arguments = TrainingArguments(
         num_train_epochs=3,
@@ -93,11 +100,15 @@ def run_detection(full_dataset: bool, train: bool, threshold: float | None):
         pprint(metrics)
     if not full_dataset or not train:
         pprint(test_detection(model, tokenizer, arguments, prompter, threshold))
+    if full_dataset:
+        pprint(test_exclusive(model, tokenizer, arguments, prompter, threshold))
+        pprint(test_lengths(model, tokenizer, arguments, prompter, threshold))
+        pprint(test_repetition(model, tokenizer, arguments, prompter, threshold))
     pprint(predict_detection(model, tokenizer, prompts, arguments, prompter, threshold))
 
 
 if __name__ == "__main__":
-    run_classification(True, False)
-    run_classification(True, True)
+    # run_classification(True, False)
+    # run_classification(True, True)
     run_detection(True, False, None)
-    run_detection(True, True, None)
+    # run_detection(True, True, None)

@@ -23,7 +23,7 @@ def predict(
     dataset = trainer.preprocess_dataset(
         DataFrame({"text": prompts, "score": [score] * len(prompts)})
     )
-    prediction = trainer.predict(dataset) # type: ignore
+    prediction = trainer.predict(dataset)  # type: ignore
     if trainer.token_ids is None:
         logits = prediction.predictions
         labels = predict_encoder(prediction, threshold)

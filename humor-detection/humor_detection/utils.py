@@ -36,8 +36,6 @@ def set_random_seeds(seed=79):
     torch.cuda.manual_seed_all(seed)
 
 
-set_random_seeds()
-
 best_model_metrics = {
     "macro_f1": "macro_avg_f1-score",
     "weighted_f1": "weighted_avg_f1-score",

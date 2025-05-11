@@ -1,9 +1,9 @@
 from .dataset import (
+    Exclusive,
+    LongLengths,
+    Repetition,
+    ShortLengths,
     Test,
-    TestExclusive,
-    TestLongLengths,
-    TestRepetition,
-    TestShortLengths,
     load_csv,
 )
 from .utils import calculate_metrics, log_metrics_mlflow
@@ -38,14 +38,14 @@ def test_detection(prompter: Callable[[str], str]):
 
 
 def test_exclusive(prompter: Callable[[str], str]):
-    return test(load_csv(TestExclusive), prompter, "test_lengths")
+    return test(load_csv(Exclusive), prompter, "test_exclusive")
 
 
 def test_lengths(prompter: Callable[[str], str]):
-    long = test(load_csv(TestLongLengths), prompter, "test_long_lengths")
-    short = test(load_csv(TestShortLengths), prompter, "test_short_lengths")
+    long = test(load_csv(LongLengths), prompter, "test_long_lengths")
+    short = test(load_csv(ShortLengths), prompter, "test_short_lengths")
     return short, long
 
 
 def test_repetition(prompter: Callable[[str], str]):
-    return test(load_csv(TestRepetition), prompter, "test_repetition")
+    return test(load_csv(Repetition), prompter, "test_repetition")

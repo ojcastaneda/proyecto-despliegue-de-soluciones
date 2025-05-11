@@ -1,11 +1,17 @@
 from humor_detection.encoder import classification_model, detection_model
-from humor_detection.test import test_classification, test_detection
+from humor_detection.test import (
+    test_classification,
+    test_detection,
+    test_exclusive,
+    test_lengths,
+    test_repetition,
+)
 from humor_detection.train import train_classification, train_detection
 from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import set_random_seeds
 from pprint import pprint
 from transformers.training_args import TrainingArguments
-from transformers.optimization import get_cosine_with_min_lr_schedule_with_warmup
+# from transformers.optimization import get_cosine_with_min_lr_schedule_with_warmup
 
 # Cambiar semilla random
 set_random_seeds()
@@ -23,6 +29,7 @@ default_arguments = {
 }
 # Prompts para predicciones
 prompts = [
+    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso."  # Humor alto
     "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",  # Humor
     "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",  # Humor
     "The brain surgeon changed my life. He really opened my mind.",  # No humor
@@ -91,6 +98,10 @@ def run_detection(full_dataset: bool, threshold: float | None):
     pprint(metrics)
     if not full_dataset:
         pprint(test_detection(model, tokenizer, arguments, threshold=threshold))
+    if full_dataset:
+        pprint(test_exclusive(model, tokenizer, arguments, threshold=threshold))
+        pprint(test_lengths(model, tokenizer, arguments, threshold=threshold))
+        pprint(test_repetition(model, tokenizer, arguments, threshold=threshold))
     pprint(predict_detection(model, tokenizer, prompts, arguments, threshold=threshold))
 
 

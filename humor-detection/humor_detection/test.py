@@ -1,9 +1,9 @@
 from .dataset import (
+    Exclusive,
+    LongLengths,
+    Repetition,
+    ShortLengths,
     Test,
-    TestExclusive,
-    TestLongLengths,
-    TestRepetition,
-    TestShortLengths,
     load_csv,
 )
 from .utils import CustomTrainer, log_metrics_mlflow
@@ -92,11 +92,11 @@ def test_exclusive(
     return test(
         model,
         tokenizer,
-        load_csv(TestExclusive),
+        load_csv(Exclusive),
         arguments,
         prompter,
         threshold,
-        "test_lengths",
+        "test_exclusive",
     )
 
 
@@ -110,7 +110,7 @@ def test_lengths(
     long = test(
         model,
         tokenizer,
-        load_csv(TestLongLengths),
+        load_csv(LongLengths),
         arguments,
         prompter,
         threshold,
@@ -119,7 +119,7 @@ def test_lengths(
     short = test(
         model,
         tokenizer,
-        load_csv(TestShortLengths),
+        load_csv(ShortLengths),
         arguments,
         prompter,
         threshold,
@@ -138,7 +138,7 @@ def test_repetition(
     return test(
         model,
         tokenizer,
-        load_csv(TestRepetition),
+        load_csv(Repetition),
         arguments,
         prompter,
         threshold,
