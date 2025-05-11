@@ -178,3 +178,7 @@ temp
 **/train_checkpoints
 **/trainer_output
 **/mlruns
+
+
+.python-version
+*.zip
