@@ -107,4 +107,4 @@ def run_detection(full_dataset: bool, threshold: float | None):
 
 if __name__ == "__main__":
     run_classification(True)
-    run_detection(True, None)
+    run_detection(True, 0.7)
