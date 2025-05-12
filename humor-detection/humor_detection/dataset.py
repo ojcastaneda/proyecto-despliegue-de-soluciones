@@ -163,7 +163,7 @@ class Repetition(DatasetProcessor):
         self, repetition_tokens: list[str], exclusive_humor: list[str], rows: int
     ):
         set_random_seeds()
-        repetition_tokens = list(set(exclusive_humor + repetition_tokens))
+        repetition_tokens = sorted(set(exclusive_humor + repetition_tokens))
         test = DataFrame(
             [
                 {
