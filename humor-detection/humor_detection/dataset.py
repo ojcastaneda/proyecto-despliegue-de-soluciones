@@ -65,7 +65,7 @@ class FinalDatasetProcessor(DatasetProcessor):
 
 
 class BaseTrain(DatasetProcessor):
-    output_path = f"{PROCESSED_FOLDER}/train.csv"
+    output_path = f"{PROCESSED_FOLDER}/base_train.csv"
 
     def preprocess(self):
         return concat(
@@ -79,26 +79,25 @@ class Exclusive(DatasetProcessor):
     train_path = f"{PROCESSED_FOLDER}/train_exclusive.csv"
 
     def preprocess(
-        self,
-        exclusive_humor: list[str],
-        exclusive_non_humor: list[str],
+        self, exclusive_humor: list[str], exclusive_non_humor: list[str], rows: int
     ):
         set_random_seeds()
-        self.generate(exclusive_humor, exclusive_non_humor, load_csv(BaseTrain)).to_csv(
-            self.train_path, index=False
-        )
+        self.generate(
+            exclusive_humor, exclusive_non_humor, rows, load_csv(BaseTrain)
+        ).to_csv(self.train_path, index=False)
         return self.generate(
-            exclusive_humor, exclusive_non_humor, load_csv(Test.detection_path)
+            exclusive_humor, exclusive_non_humor, rows, load_csv(Test.detection_path)
         )
 
     def generate(
         self,
         exclusive_humor: list[str],
         exclusive_non_humor: list[str],
+        rows: int,
         original_dataset: DataFrame,
     ):
         data = []
-        for _ in range(1100):
+        for _ in range(rows):
             row = original_dataset.sample(n=1).iloc[0]
             score = row["score"]
             distractions = exclusive_humor if score == 0 else exclusive_non_humor
@@ -161,7 +160,9 @@ class Repetition(DatasetProcessor):
     output_path = f"{DETECTION_FOLDER}/test_repetition.csv"
     train_path = f"{PROCESSED_FOLDER}/train_repetition.csv"
 
-    def preprocess(self, repetition_tokens: list[str], exclusive_humor: list[str]):
+    def preprocess(
+        self, repetition_tokens: list[str], exclusive_humor: list[str], rows: int
+    ):
         set_random_seeds()
         repetition_tokens = list(set(exclusive_humor + repetition_tokens))
         test = DataFrame(
@@ -170,11 +171,11 @@ class Repetition(DatasetProcessor):
                     "text": " ".join(choices(repetition_tokens, k=randint(1, 15))),
                     "score": 0,
                 }
-                for _ in range(2200)
+                for _ in range(rows * 2)
             ]
         ).drop_duplicates(subset=["text"], keep=False)
         test, train = train_test_split(test, test_size=0.5)
-        train.to_csv(self.train_path)
+        train.to_csv(self.train_path, index=False)
         return test
 
 
@@ -224,7 +225,7 @@ class StupidStuff(DatasetProcessor):
 
 class Test(FinalDatasetProcessor):
     output_path = f"{RAW_FOLDER}/test_no_labels.csv"
-    base_path = f"{PROCESSED_FOLDER}/test.csv"
+    base_path = f"{RAW_FOLDER}/test_labels.csv"
     classification_path = f"{CLASSIFICATION_FOLDER}/test.csv"
     detection_path = f"{DETECTION_FOLDER}/test.csv"
 
@@ -277,7 +278,7 @@ class Test(FinalDatasetProcessor):
 
 
 class Train(FinalDatasetProcessor):
-    output_path = f"{DATA_FOLDER}/train.csv"
+    output_path = f"{PROCESSED_FOLDER}/train.csv"
     classification_path = f"{CLASSIFICATION_FOLDER}/train.csv"
     detection_path = f"{DETECTION_FOLDER}/train.csv"
 
@@ -310,7 +311,7 @@ class Train(FinalDatasetProcessor):
 
 
 class TrainMultilingual(FinalDatasetProcessor):
-    output_path = f"{DATA_FOLDER}/train_multilingual.csv"
+    output_path = f"{PROCESSED_FOLDER}/train_multilingual.csv"
     classification_path = f"{CLASSIFICATION_FOLDER}/train_multilingual.csv"
     detection_path = f"{DETECTION_FOLDER}/train_multilingual.csv"
 
