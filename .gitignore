@@ -178,4 +178,11 @@ cython_debug/
 .pypirc
 
 /models
-/temp
+temp
+**/train_checkpoints
+**/trainer_output
+**/mlruns
+
+
+.python-version
+*.zip

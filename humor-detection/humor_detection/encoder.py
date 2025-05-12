@@ -1,11 +1,11 @@
+from .utils import calculate_metrics
 from datasets import Dataset
+from numpy.typing import NDArray
 from os.path import exists, isdir
 from pandas import DataFrame
 from peft import LoraConfig, PeftModel, get_peft_model
+from scipy.special import softmax
 from shutil import rmtree
-from sklearn.metrics import classification_report
-from torch import Tensor, argmax, tensor
-from transformers.data.data_collator import DataCollatorWithPadding
 from transformers.models.auto.modeling_auto import AutoModelForSequenceClassification
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.modeling_utils import PreTrainedModel
@@ -60,40 +60,46 @@ def load_model(model_name: str, path: str, tokenizer_name: str | None = None):
     return model, tokenizer
 
 
-def metrics(prediction: EvalPrediction) -> dict:
-    return classification_report(
-        prediction.label_ids, prediction.predictions, output_dict=True, zero_division=1
-    )  # type: ignore
-
-
 def save_model(model: PreTrainedModel | PeftModel, path: str):
     if exists(path) and isdir(path):
         rmtree(path)
     model.save_pretrained(path)
 
 
-def predict(prediction: PredictionOutput):
-    return preprocess_logits(tensor(prediction.predictions), tensor([]))
+def compute_labels(logits: NDArray, threshold: float | None) -> NDArray:
+    if threshold is None:
+        return logits.argmax(-1)
+    return (softmax(logits, -1)[:, 1] > threshold).astype(int)
 
 
-def preprocess(
-    dataset: DataFrame,
-    tokenizer: PreTrainedTokenizerBase,
-    prompter: Callable[[str], str] | None,
+def compute_metrics(threshold: float | None):
+    def _compute_metrics(prediction: EvalPrediction):
+        return calculate_metrics(
+            prediction.label_ids, compute_labels(prediction.predictions, threshold)  # type: ignore
+        )
+
+    return _compute_metrics
+
+
+def predict(prediction: PredictionOutput, threshold: float | None):
+    return compute_labels(prediction.predictions, threshold)  # type: ignore
+
+
+def preprocess_dataset(
+    tokenizer: PreTrainedTokenizerBase, prompter: Callable[[str], str] | None
 ):
+    tokenizer.truncation_side = "left"
+
     def tokenize_function(examples):
         if prompter is not None:
             examples["text"] = [prompter(text) for text in examples["text"]]
-        tokenized = tokenizer(examples["text"], padding=False, truncation=True)
+        tokenized = tokenizer(
+            examples["text"], padding=False, truncation=True, add_special_tokens=False
+        )
         tokenized["labels"] = examples["score"]
         return tokenized
 
-    return Dataset.from_pandas(dataset).map(tokenize_function, batched=True)
+    def _preprocess_dataset(dataset: DataFrame):
+        return Dataset.from_pandas(dataset).map(tokenize_function, batched=True)
 
-
-def preprocess_logits(logits: Tensor, _: Tensor | None = None):
-    return argmax(logits, dim=-1)
-
-
-def setup(tokenizer: PreTrainedTokenizerBase):
-    return None, DataCollatorWithPadding(tokenizer), preprocess, metrics
+    return _preprocess_dataset

@@ -1,11 +1,13 @@
+from .utils import calculate_metrics
 from datasets import Dataset
-from numpy import where
+from numpy import array, where
+from numpy.typing import NDArray
 from os.path import exists, isdir
 from pandas import DataFrame
 from peft import LoraConfig, PeftModel, get_peft_model
+from scipy.special import softmax
 from shutil import rmtree
-from sklearn.metrics import classification_report
-from torch import Tensor, argmax, tensor
+from torch import Tensor, arange
 from transformers.data.data_collator import DataCollatorForLanguageModeling
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.modeling_utils import PreTrainedModel
@@ -19,6 +21,7 @@ def create_model(
     model_name: str,
     lora_configuration: LoraConfig | None,
     tokenizer_name: str | None,
+    classes: list[str],
 ) -> tuple[PeftModel | PreTrainedModel, PreTrainedTokenizerBase]:
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         model_name if tokenizer_name is None else tokenizer_name
@@ -26,6 +29,7 @@ def create_model(
     model = AutoModelForCausalLM.from_pretrained(model_name)
     if lora_configuration is not None:
         model = get_peft_model(model, lora_configuration)
+    model.config.classes = classes  # type: ignore
     return model, tokenizer  # type: ignore
 
 
@@ -33,20 +37,18 @@ def classification_model(
     model_name: str,
     lora_configuration: LoraConfig | None = None,
     tokenizer_name: str | None = None,
+    classes: list[str] = ["1", "2", "3", "4", "5"],
 ):
-    return create_model(
-        model_name,
-        lora_configuration,
-        tokenizer_name,
-    )
+    return create_model(model_name, lora_configuration, tokenizer_name, classes)
 
 
 def detection_model(
     model_name: str,
     lora_configuration: LoraConfig | None = None,
     tokenizer_name: str | None = None,
+    classes: list[str] = ["0", "1"],
 ):
-    return create_model(model_name, lora_configuration, tokenizer_name)
+    return create_model(model_name, lora_configuration, tokenizer_name, classes)
 
 
 def load_model(model_name: str, path: str, tokenizer_name: str | None = None):
@@ -57,76 +59,108 @@ def load_model(model_name: str, path: str, tokenizer_name: str | None = None):
     return model, tokenizer
 
 
-def metrics(
-    token_dictionary: dict[int, str],
-    prediction: EvalPrediction,
-) -> dict:
-    if isinstance(prediction.label_ids, tuple) or isinstance(
-        prediction.predictions, tuple
-    ):
-        return {}
-    batch_size = prediction.label_ids.shape[0]
-    mask = prediction.label_ids != -100
-    labels = [0] * batch_size
-    predictions = [0] * batch_size
+def compute_labels(logits: NDArray, threshold: float | None):
+    return (
+        logits.argmax(-1)
+        if threshold is None
+        else where(softmax(logits, -1)[..., 1] > threshold, 1, 0)
+    )
+
+
+def compute_metrics(lookup_token: NDArray, threshold: float | None):
+    def _compute_metrics(prediction: EvalPrediction):
+        labels, predictions = extract_predictions(
+            prediction.label_ids,  # type: ignore
+            compute_labels(prediction.predictions, threshold),  # type: ignore
+            lookup_token,
+        )
+        return calculate_metrics(labels, predictions)
+
+    return _compute_metrics
+
+
+def extract_predictions(
+    label_ids: NDArray | list[list[int]], prediction: NDArray, lookup_token: NDArray
+):
+    batch_size = len(label_ids)
+    labels = []
+    predictions = []
+    is_prediction = isinstance(label_ids, list)
+    shift_correction = int(not is_prediction)
     for i in range(batch_size):
-        positive_indices = where(mask[i])[0]
-        index = 0 if len(positive_indices) < 0 else positive_indices[-1]
-        labels[i] = token_dictionary[prediction.label_ids[i, index]]
-        predictions[i] = token_dictionary[prediction.predictions[i, index]]
-    return classification_report(
-        labels,
-        predictions,
-        output_dict=True,
-        zero_division=1,
-    )  # type: ignore
+        batch_labels = label_ids[i]
+        if is_prediction:
+            batch_labels = array(batch_labels)
+        positive_indices = where(batch_labels != -100)[0]
+        index = 0 if len(positive_indices) < 1 else positive_indices[-1]
+        labels.append(batch_labels[index])
+        predictions.append(prediction[i, index - shift_correction])
+    labels = array(labels)
+    return labels if is_prediction else lookup_token[labels], array(predictions)
 
 
 def predict(
-    prediction: PredictionOutput, tokenizer: PreTrainedTokenizerBase, tokens: list[int]
+    original: Dataset,
+    prediction: PredictionOutput,
+    lookup_token: NDArray,
+    threshold: float | None,
 ):
-    return tokenizer.batch_decode(
-        where(
-            (prediction.label_ids == -100),
-            tokenizer.all_special_ids[0],
-            preprocess_logits(
-                tokens, tensor(prediction.predictions), tensor([])
-            ).numpy(),
-        ),
-        True,
-    )
+    _, predictions = extract_predictions(original["input_ids"], prediction.predictions, lookup_token)  # type: ignore
+    return (compute_labels(predictions, threshold), predictions)
 
 
-def preprocess(
-    dataset: DataFrame,
+def preprocess_dataset(
     tokenizer: PreTrainedTokenizerBase,
     prompter: Callable[[str], str] | None,
+    classes: list[str],
 ):
+    tokenizer.truncation_side = "left"
+
     def tokenize_function(examples):
-        if prompter is not None:
-            examples["text"] = [prompter(text) for text in examples["text"]]
-        input_ids = []
-        attention_mask = []
-        for text, score in zip(examples["text"], examples["score"]):
-            score_tokens = tokenizer(str(score), add_special_tokens=False)
-            text_tokens = tokenizer(
-                text, truncation=True, max_length=tokenizer.model_max_length - len(score_tokens["input_ids"])  # type: ignore
-            )
-            input_ids.append(text_tokens["input_ids"] + score_tokens["input_ids"])  # type: ignore
-            attention_mask.append(
-                text_tokens["attention_mask"] + score_tokens["attention_mask"]  # type: ignore
-            )
-        return {"input_ids": input_ids, "attention_mask": attention_mask}
+        texts = (
+            examples["text"]
+            if prompter is None
+            else [prompter(text) for text in examples["text"]]
+        )
+        tokenized = tokenizer(
+            texts, padding=False, truncation=True, add_special_tokens=False
+        )
+        scores: list[list[int]] = tokenizer(
+            examples["score"], max_length=1, truncation=True, add_special_tokens=False
+        )[
+            "input_ids"
+        ]  # type: ignore
+        input_ids: list[list[int]] = tokenized["input_ids"]  # type: ignore
+        attention_mask: list[list[int]] = tokenized["attention_mask"]  # type: ignore
+        max_length = tokenizer.model_max_length or 10000
+        for i in range(len(input_ids)):
+            input_ids[i].insert(0, tokenizer.bos_token_id)  # type: ignore
+            attention_mask[i].append(1)
+            if scores[i][0] == tokenizer.eos_token_id:
+                continue
+            input_ids[i].append(scores[i][0])
+            attention_mask[i].append(1)
+            if len(input_ids[i]) > max_length:
+                input_ids[i] = input_ids[i][1:]
+                attention_mask[i] = attention_mask[i][1:]
+        return tokenized
 
-    return Dataset.from_pandas(dataset).map(tokenize_function, batched=True)
+    def score_to_class(value: str):
+        return tokenizer.eos_token if value is None else classes[int(value)]
+
+    def _preprocess_dataset(dataset: DataFrame):
+        if "score" in dataset.columns:
+            dataset["score"] = dataset["score"].map(score_to_class)
+        return Dataset.from_pandas(dataset).map(tokenize_function, batched=True)
+
+    return _preprocess_dataset
 
 
-def preprocess_logits(target_tokens: list[int], logits: Tensor, _: Tensor):
-    filtered_logits = logits[..., target_tokens]
-    target_indices = argmax(filtered_logits, dim=-1)
-    return tensor([target_tokens[i] for i in target_indices.flatten()]).reshape(
-        target_indices.shape
-    )
+def preprocess_logits(token_ids: NDArray):
+    def _preprocess_logits(logits: NDArray, _: NDArray):
+        return logits[..., token_ids]
+
+    return _preprocess_logits
 
 
 def save_model(model: PreTrainedModel | PeftModel, path: str):
@@ -135,32 +169,15 @@ def save_model(model: PreTrainedModel | PeftModel, path: str):
     model.save_pretrained(path)
 
 
-def setup(tokenizer: PreTrainedTokenizerBase, classes: list[str]):
-    tokens: list[int] = []
-    token_dictionary: dict[int, str] = {}
-    for token in classes:
-        token_id = tokenizer.encode(token, add_special_tokens=False)[0]
-        tokens.append(token_id)
-        token_dictionary[token_id] = token
-
-    def _metrics(prediction: EvalPrediction):
-        return metrics(token_dictionary, prediction)
-
-    return (
-        tokens,
-        LastTokenCollator(tokenizer, mlm=False),
-        preprocess,
-        _metrics,
-    )
-
-
 class LastTokenCollator(DataCollatorForLanguageModeling):
     def torch_call(self, examples):
         batch = super().torch_call(examples)
-        for i in range(len(batch["labels"])):
-            for j in range(len(batch["labels"][i]) - 1):
-                if batch["labels"][i][j] == -100:
-                    break
-                if batch["labels"][i][j + 1] != -100:
-                    batch["labels"][i][j] = -100
+        labels: Tensor = batch["labels"]
+        last = (
+            ((labels != -100).float() * arange(labels.size(1), device=labels.device))
+            .max(dim=-1)
+            .values.long()
+        )
+        mask = arange(labels.size(1), device=labels.device)[None, :] != last[:, None]
+        labels[mask] = -100
         return batch
