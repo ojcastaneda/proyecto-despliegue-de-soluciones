@@ -21,8 +21,8 @@ default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 20,
-    "per_device_train_batch_size": 40,
+    "per_device_eval_batch_size": 3,
+    "per_device_train_batch_size": 6,
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",

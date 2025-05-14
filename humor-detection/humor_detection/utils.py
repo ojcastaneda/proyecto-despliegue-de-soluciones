@@ -215,9 +215,9 @@ def optimize_arguments(
     )
     arguments.logging_dir = None
     arguments.report_to = "none"
-    arguments.gradient_accumulation_steps = 1
-    arguments.torch_empty_cache_steps = 1
-    arguments.gradient_checkpointing = not isinstance(model, PeftModel)
+    # arguments.gradient_accumulation_steps = 1
+    # arguments.torch_empty_cache_steps = 1
+    # arguments.gradient_checkpointing = not isinstance(model, PeftModel)
 
 
 def log_metrics_mlflow(

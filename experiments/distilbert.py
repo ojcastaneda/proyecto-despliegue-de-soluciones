@@ -24,8 +24,8 @@ default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 150,
-    "per_device_train_batch_size": 150,
+    "per_device_eval_batch_size": 40,
+    "per_device_train_batch_size": 40,
 }
 # Prompts para predicciones
 prompts = [
