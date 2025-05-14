@@ -29,7 +29,7 @@ default_arguments = {
 }
 # Prompts para predicciones
 prompts = [
-    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso."  # Humor alto
+    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",  # Humor alto
     "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",  # Humor
     "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",  # Humor
     "The brain surgeon changed my life. He really opened my mind.",  # No humor

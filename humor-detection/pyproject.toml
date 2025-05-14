@@ -7,10 +7,14 @@ name = "humor-detection"
 version = "1.0.0"
 description = ""
 dependencies = [
-    "protobuf==6.30.2",
-    "scikit-learn==1.6.1",
-    "transformers==4.51.1",
+    "datasets==3.5.0",
+    "google-genai==1.15.0",
+    "mlflow==2.22.0",
     "peft==0.15.1",
-    "ydata-profiling==4.16.1",
-    "mlflow==2.22.0"
+    "protobuf==6.30.2",
+    "python-dotenv==1.1.0",
+    "scikit-learn==1.6.1",
+    "torch==2.7.0",
+    "transformers==4.51.1",
+    "ydata-profiling==4.12.2"
 ]

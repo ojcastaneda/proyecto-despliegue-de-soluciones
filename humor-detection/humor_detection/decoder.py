@@ -8,6 +8,7 @@ from peft import LoraConfig, PeftModel, get_peft_model
 from scipy.special import softmax
 from shutil import rmtree
 from torch import Tensor, arange
+from transformers.configuration_utils import PretrainedConfig
 from transformers.data.data_collator import DataCollatorForLanguageModeling
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.modeling_utils import PreTrainedModel
@@ -113,6 +114,7 @@ def preprocess_dataset(
     tokenizer: PreTrainedTokenizerBase,
     prompter: Callable[[str], str] | None,
     classes: list[str],
+    config: PretrainedConfig,
 ):
     tokenizer.truncation_side = "left"
 
@@ -122,8 +124,16 @@ def preprocess_dataset(
             if prompter is None
             else [prompter(text) for text in examples["text"]]
         )
+        max_length = (
+            config.max_position_embeddings
+            if hasattr(config, "max_position_embeddings")
+            else 1024
+        )
         tokenized = tokenizer(
-            texts, padding=False, truncation=True, add_special_tokens=False
+            texts,
+            padding=False,
+            truncation=True,
+            max_length=max_length,
         )
         scores: list[list[int]] = tokenizer(
             examples["score"], max_length=1, truncation=True, add_special_tokens=False
@@ -132,11 +142,15 @@ def preprocess_dataset(
         ]  # type: ignore
         input_ids: list[list[int]] = tokenized["input_ids"]  # type: ignore
         attention_mask: list[list[int]] = tokenized["attention_mask"]  # type: ignore
-        max_length = tokenizer.model_max_length or 10000
         for i in range(len(input_ids)):
-            input_ids[i].insert(0, tokenizer.bos_token_id)  # type: ignore
-            attention_mask[i].append(1)
             if scores[i][0] == tokenizer.eos_token_id:
+                if input_ids[i][-1] == tokenizer.eos_token_id:
+                    input_ids[i].pop()
+                    attention_mask[i].pop()
+                continue
+            if input_ids[i][-1] == tokenizer.eos_token_id:
+                input_ids[i][-1] = scores[i][0]
+                attention_mask[i][-1] = 1
                 continue
             input_ids[i].append(scores[i][0])
             attention_mask[i].append(1)

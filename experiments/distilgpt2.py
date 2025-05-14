@@ -1,3 +1,4 @@
+from typing import Callable
 from humor_detection.decoder import classification_model, detection_model
 from humor_detection.test import (
     test_classification,
@@ -24,7 +25,7 @@ default_arguments = {
     "per_device_train_batch_size": 40,
 }
 prompts = [
-    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso."
+    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
     "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",
     "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",
     "The brain surgeon changed my life. He really opened my mind.",
@@ -38,16 +39,9 @@ def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
     tokenizer.pad_token = tokenizer.eos_token
 
 
-def run_classification(full_dataset: bool, train: bool):
-
-    def prompter(input: str):
-        return (
-            f"Give a humor rating 1 to 5 for the following text:\n{input}\nScore:\n\n"
-        )
-
+def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
     arguments = TrainingArguments(
         num_train_epochs=3,
-        optim="adamw_8bit",
         lr_scheduler_type="cosine_with_restarts",
         **default_arguments,
     )
@@ -75,10 +69,12 @@ def run_classification(full_dataset: bool, train: bool):
     pprint(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
 
-def run_detection(full_dataset: bool, train: bool, threshold: float | None):
-    def prompter(input: str):
-        return f"Detect if the following text is humor 1 or not 0:\n{input}\nScore:\n"
-
+def run_detection(
+    full_dataset: bool,
+    train: bool,
+    prompter: Callable[[str], str],
+    threshold: float | None,
+):
     arguments = TrainingArguments(
         num_train_epochs=3,
         **default_arguments,
@@ -107,8 +103,51 @@ def run_detection(full_dataset: bool, train: bool, threshold: float | None):
     pprint(predict_detection(model, tokenizer, prompts, arguments, prompter, threshold))
 
 
+def classification_prompter(input: str):
+    return f"""You are a latino guy, rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny. Do not answer anything else.
+
+Text: Un piano me caería excelente en estos momentos.
+Output: 5
+
+Text: Ni Jesús te ama.
+Output: 1
+
+Text: Jajajajajajajaj Idiota.
+Output: 1
+
+Text: {input}
+Output: 
+"""
+
+
+def classification_tune_prompter(input: str):
+    return f"""{input}
+You are a latino guy, rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny. Do not answer anything else."""
+
+
+def detection_prompter(input: str):
+    return f"""You are a latino guy, rate the humor of the following text on a scale from 0 to 1, where 0 means not funny and 1 means funny. Do not answer anything else.
+
+Text: Un piano me caería excelente en estos momentos.
+Output: 1
+
+Text: Ni Jesús te ama.
+Output: 0
+
+Text: Jajajajajajajaj Idiota.
+Output: 0
+
+Text: {input}
+"""
+
+
+def detection_tune_prompter(input: str):
+    return f"""{input}
+You are a latino guy, rate the humor of the following text on a scale from 0 to 1, where 0 means not funny and 1 means funny. Do not answer anything else."""
+
+
 if __name__ == "__main__":
-    run_classification(True, False)
-    run_classification(True, True)
-    run_detection(True, False, None)
-    run_detection(True, True, None)
+    # run_classification(True, False, classification_tune_prompter)
+    run_classification(True, True, classification_tune_prompter)
+    # run_detection(True, False, detection_tune_prompter, None)
+    run_detection(True, True, detection_tune_prompter, None)

@@ -1,4 +1,5 @@
 from copy import deepcopy
+from os import environ
 from typing import Callable, Literal
 from numpy import array, max
 from numpy.typing import NDArray
@@ -11,6 +12,7 @@ from mlflow import (
     log_params,
     set_experiment,
     set_tag,
+    set_tracking_uri,
     start_run,
 )
 from os.path import abspath, dirname, join
@@ -103,7 +105,9 @@ class CustomTrainer(Trainer):
             self.lookup_token[self.token_ids] = arange(len(self.token_ids))
             compute_metrics = compute_metrics(self.lookup_token.numpy(), threshold)
             model.loss_function = self.decoder_loss_function  # type: ignore
-            self.preprocess_dataset = preprocess_dataset(tokenizer, prompter, classes)
+            self.preprocess_dataset = preprocess_dataset(
+                tokenizer, prompter, classes, model.config  # type: ignore
+            )
             kwargs["preprocess_logits_for_metrics"] = preprocess_logits(self.token_ids)
         if train_dataset is not None:
             kwargs["train_dataset"] = self.preprocess_dataset(train_dataset)
@@ -224,6 +228,9 @@ def log_metrics_mlflow(
     tokenizer: PreTrainedTokenizerBase | None,
     prefix: str,
 ):
+    url = environ.get("ML_FLOW_URL")
+    if url is not None and url.strip() != "":
+        set_tracking_uri(url)
     if isinstance(model, tuple):
         model_name = model[0]
         model_type = "decoder"
@@ -284,6 +291,7 @@ def calculate_metrics(labels: list[int] | NDArray, predictions: list[int] | NDAr
         for key in metric:
             flatten[f"{category}_{key}".replace(" ", "_")] = metric[key]
     return flatten
+
 
 def relative_path(path: str):
     try:
