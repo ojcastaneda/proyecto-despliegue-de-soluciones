@@ -103,47 +103,12 @@ def run_detection(
     pprint(predict_detection(model, tokenizer, prompts, arguments, prompter, threshold))
 
 
-def classification_prompter(input: str):
-    return f"""You are a latino guy, rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny. Do not answer anything else.
-
-Text: Un piano me caería excelente en estos momentos.
-Output: 5
-
-Text: Ni Jesús te ama.
-Output: 1
-
-Text: Jajajajajajajaj Idiota.
-Output: 1
-
-Text: {input}
-Output: 
-"""
-
-
 def classification_tune_prompter(input: str):
-    return f"""{input}
-You are a latino guy, rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny. Do not answer anything else."""
-
-
-def detection_prompter(input: str):
-    return f"""You are a latino guy, rate the humor of the following text on a scale from 0 to 1, where 0 means not funny and 1 means funny. Do not answer anything else.
-
-Text: Un piano me caería excelente en estos momentos.
-Output: 1
-
-Text: Ni Jesús te ama.
-Output: 0
-
-Text: Jajajajajajajaj Idiota.
-Output: 0
-
-Text: {input}
-"""
+    return f"Rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny.\n{input}"
 
 
 def detection_tune_prompter(input: str):
-    return f"""{input}
-You are a latino guy, rate the humor of the following text on a scale from 0 to 1, where 0 means not funny and 1 means funny. Do not answer anything else."""
+    return f"Rate the humor of the following text on a scale from 0 to 1, where 0 means not funny and 1 means funny.\n{input}"
 
 
 if __name__ == "__main__":
