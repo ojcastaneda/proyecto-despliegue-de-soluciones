@@ -24,8 +24,8 @@ default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 40,
-    "per_device_train_batch_size": 40,
+    "per_device_eval_batch_size": 20,
+    "per_device_train_batch_size": 30,
 }
 # Prompts para predicciones
 prompts = [
@@ -82,8 +82,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
     arguments = TrainingArguments(
         num_train_epochs=3,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.5, "min_lr": 1e-5},
-        max_grad_norm=2,
+        lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
         **default_arguments,
     )
     train_logs, metrics = train_detection(
@@ -91,6 +90,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
         tokenizer,
         arguments,
         full_dataset=full_dataset,
+        class_weights=[1.1, 1],
         threshold=threshold,  # Threshold para predecir humor más alto requiere máyor probabiliad (0.75 es un buen valor pero depende del modelo)
         save_path=f"{save_path}/detection" if full_dataset else None,
     )
@@ -107,4 +107,4 @@ def run_detection(full_dataset: bool, threshold: float | None):
 
 if __name__ == "__main__":
     run_classification(True)
-    run_detection(True, 0.7)
+    run_detection(True, None)
