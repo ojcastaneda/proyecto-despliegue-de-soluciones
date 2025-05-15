@@ -24,12 +24,12 @@ default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 150,
-    "per_device_train_batch_size": 150,
+    "per_device_eval_batch_size": 40,
+    "per_device_train_batch_size": 40,
 }
 # Prompts para predicciones
 prompts = [
-    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso."  # Humor alto
+    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",  # Humor alto
     "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",  # Humor
     "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",  # Humor
     "The brain surgeon changed my life. He really opened my mind.",  # No humor
@@ -107,4 +107,4 @@ def run_detection(full_dataset: bool, threshold: float | None):
 
 if __name__ == "__main__":
     run_classification(True)
-    run_detection(True, None)
+    run_detection(True, 0.7)

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from json import load
 from os import makedirs
 from os.path import dirname
-from random import choices, randint
+from random import choices, randint, random
 from typing import Callable
 from pandas import DataFrame, concat, read_csv
 from ydata_profiling import ProfileReport
@@ -105,7 +105,7 @@ class Exclusive(DatasetProcessor):
             tokens.extend(
                 choices(distractions, k=randint(1, min(3, len(distractions))))
             )
-            data.append({"text": " ".join(tokens), "score": score})
+            data.append({"text": random_join(tokens), "score": score})
         return DataFrame(data).drop_duplicates(subset=["text"], keep=False)
 
 
@@ -113,7 +113,6 @@ class LongLengths(DatasetProcessor):
     output_path = f"{DETECTION_FOLDER}/long_lengths.csv"
 
     def preprocess(self):
-        set_random_seeds()
         test_dataset = load_csv(Test.detection_path)
         text_lengths = test_dataset["text"].str.len()
         return test_dataset[text_lengths >= text_lengths.quantile(0.9)]  # type: ignore
@@ -164,11 +163,13 @@ class Repetition(DatasetProcessor):
         self, repetition_tokens: list[str], exclusive_humor: list[str], rows: int
     ):
         set_random_seeds()
-        repetition_tokens = list(set(exclusive_humor + repetition_tokens))
+        repetition_tokens = sorted(set(exclusive_humor + repetition_tokens))
         test = DataFrame(
             [
                 {
-                    "text": " ".join(choices(repetition_tokens, k=randint(1, 15))),
+                    "text": random_join(
+                        choices(repetition_tokens, k=randint(1, 50))
+                    ),
                     "score": 0,
                 }
                 for _ in range(rows * 2)
@@ -178,12 +179,10 @@ class Repetition(DatasetProcessor):
         train.to_csv(self.train_path, index=False)
         return test
 
-
 class ShortLengths(DatasetProcessor):
     output_path = f"{DETECTION_FOLDER}/short_lengths.csv"
 
     def preprocess(self):
-        set_random_seeds()
         test_dataset = load_csv(Test.detection_path)
         text_lengths = test_dataset["text"].str.len()
         return test_dataset[text_lengths <= text_lengths.quantile(0.1)]  # type: ignore
@@ -327,6 +326,11 @@ class TrainMultilingual(FinalDatasetProcessor):
     def preprocess_detection(self):
         return Train.transform_detection(load_csv(TrainMultilingual))
 
+
+def random_join(tokens: list[str]):
+    return "".join(
+        token + ("\n" if random() < 0.1 else " ") for token in tokens
+    ).strip()
 
 def load_csv(path: str | type[DatasetProcessor]):
     return read_csv(

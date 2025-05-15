@@ -93,9 +93,7 @@ def preprocess_dataset(
     def tokenize_function(examples):
         if prompter is not None:
             examples["text"] = [prompter(text) for text in examples["text"]]
-        tokenized = tokenizer(
-            examples["text"], padding=False, truncation=True, add_special_tokens=False
-        )
+        tokenized = tokenizer(examples["text"], padding=False, truncation=True)
         tokenized["labels"] = examples["score"]
         return tokenized
 
