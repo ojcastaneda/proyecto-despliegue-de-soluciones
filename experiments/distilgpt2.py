@@ -21,8 +21,8 @@ default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 3,
-    "per_device_train_batch_size": 6,
+    "per_device_eval_batch_size": 10,
+    "per_device_train_batch_size": 15,
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
@@ -41,8 +41,9 @@ def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
 
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
     arguments = TrainingArguments(
-        num_train_epochs=3,
-        lr_scheduler_type="cosine_with_restarts",
+        num_train_epochs=4,
+        lr_scheduler_type="cosine_with_min_lr",
+        lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
         **default_arguments,
     )
     model, tokenizer = classification_model(
@@ -59,7 +60,7 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
             arguments,
             prompter=prompter,  # Función para modificar los prompts, solo es útil en decoders
             full_dataset=full_dataset,
-            class_weights=[1, 1.25, 1.25, 2, 4],
+            class_weights=[1, 1.3, 1.2, 1.75, 4],
             save_path=f"{save_path}/classification" if full_dataset else None,
         )
         pprint(train_logs)
