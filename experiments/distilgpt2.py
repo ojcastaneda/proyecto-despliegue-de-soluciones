@@ -14,7 +14,6 @@ from pprint import pprint
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
 
-set_random_seeds()
 model_name = "distilbert/distilgpt2"
 save_path = relative_path("../models/distilgpt2")
 default_arguments = {
@@ -40,6 +39,7 @@ def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
 
 
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
+    set_random_seeds()
     arguments = TrainingArguments(
         num_train_epochs=4,
         lr_scheduler_type="cosine_with_min_lr",
@@ -76,6 +76,7 @@ def run_detection(
     prompter: Callable[[str], str],
     threshold: float | None,
 ):
+    set_random_seeds()
     arguments = TrainingArguments(
         num_train_epochs=4,
         lr_scheduler_type="cosine_with_min_lr",

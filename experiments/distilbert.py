@@ -13,8 +13,6 @@ from pprint import pprint
 from transformers.training_args import TrainingArguments
 # from transformers.optimization import get_cosine_with_min_lr_schedule_with_warmup
 
-# Cambiar semilla random
-set_random_seeds()
 # Nombre del modelo en HuggingFace
 model_name = "distilbert/distilbert-base-multilingual-cased"
 # Carpeta para agrupar y guardar modelos de clasificación y detección
@@ -40,6 +38,8 @@ prompts = [
 
 # Tarea de clasificación 1 a 5 (Los labels son 0 a 4).
 def run_classification(full_dataset: bool):
+    # Cambiar semilla random
+    set_random_seeds()
     # Función para crear el modelo, tokenizador y añadir un lora si es necesario
     model, tokenizer = classification_model(model_name)
     # Ajustes de trainer de Transformers https://huggingface.co/docs/transformers/v4.51.3/en/main_classes/trainer#transformers.TrainingArguments
@@ -78,6 +78,7 @@ def run_classification(full_dataset: bool):
 
 
 def run_detection(full_dataset: bool, threshold: float | None):
+    set_random_seeds()
     model, tokenizer = detection_model(model_name)
     arguments = TrainingArguments(
         num_train_epochs=3,
