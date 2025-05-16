@@ -13,7 +13,7 @@ from pprint import pprint
 from transformers.training_args import TrainingArguments
 
 model_name = "dccuchile/bert-base-spanish-wwm-cased"
-save_path = relative_path("../models/bertdccuchile")
+save_path = relative_path("../models/dccuchile")
 default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
@@ -35,10 +35,9 @@ def run_classification(full_dataset: bool):
     set_random_seeds()
     model, tokenizer = classification_model(model_name)
     arguments = TrainingArguments(
-        num_train_epochs=3,
+        num_train_epochs=4,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
-        max_grad_norm=0.01,
+        lr_scheduler_kwargs={"num_cycles": 2.5, "min_lr": 1e-5},
         **default_arguments,
     )
     train_logs, metrics = train_classification(
@@ -46,7 +45,7 @@ def run_classification(full_dataset: bool):
         tokenizer,
         arguments,
         full_dataset=full_dataset,
-        class_weights=[1, 1.25, 1.25, 2, 4],
+        class_weights=[1, 1.25, 1.2, 1.75, 4],
         save_path=(f"{save_path}/classification" if full_dataset else None),
     )
     pprint(train_logs)
@@ -62,8 +61,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
     arguments = TrainingArguments(
         num_train_epochs=3,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.5, "min_lr": 1e-5},
-        max_grad_norm=2,
+        lr_scheduler_kwargs={"num_cycles": 0.6, "min_lr": 1e-5},
         **default_arguments,
     )
     train_logs, metrics = train_detection(
@@ -72,6 +70,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
         arguments,
         full_dataset=full_dataset,
         threshold=threshold,
+        class_weights=[1.05, 1],
         save_path=f"{save_path}/detection" if full_dataset else None,
     )
     pprint(train_logs)
@@ -87,4 +86,4 @@ def run_detection(full_dataset: bool, threshold: float | None):
 
 if __name__ == "__main__":
     run_classification(True)
-    run_detection(True, 0.7)
+    run_detection(True, 0.65)
