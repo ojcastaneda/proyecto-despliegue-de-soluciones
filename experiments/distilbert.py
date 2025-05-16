@@ -11,7 +11,6 @@ from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import relative_path, set_random_seeds
 from pprint import pprint
 from transformers.training_args import TrainingArguments
-# from transformers.optimization import get_cosine_with_min_lr_schedule_with_warmup
 
 # Nombre del modelo en HuggingFace
 model_name = "distilbert/distilbert-base-multilingual-cased"
@@ -45,9 +44,9 @@ def run_classification(full_dataset: bool):
     # Ajustes de trainer de Transformers https://huggingface.co/docs/transformers/v4.51.3/en/main_classes/trainer#transformers.TrainingArguments
     #  Lo más importante es usar bf16 o fp16 para VRAM, batch_sizes para la velocidad y train_epochs para los epochs
     arguments = TrainingArguments(
-        num_train_epochs=10,
-        lr_scheduler_type="cosine_with_restarts",
-        max_grad_norm=0.01,
+        num_train_epochs=4,
+        lr_scheduler_type="cosine_with_min_lr",
+        lr_scheduler_kwargs={"num_cycles": 8, "min_lr": 1e-5},
         **default_arguments,
     )
     # Entrenamiento con datos en español, Con full_dataset=True entrenan el modelo final, english_data=True añade el dataset en inglés
@@ -57,7 +56,7 @@ def run_classification(full_dataset: bool):
         arguments,
         full_dataset=full_dataset,  # Entrenamiento final
         english_data=False,  # Usar dataset de StupidStuff (incluso con traducciones no parece ser buena idea)
-        class_weights=[1, 1.25, 1.25, 2, 4],  # Pesos de clases para desbalance
+        class_weights=[1, 1.25, 1.25, 1.5, 4],  # Pesos de clases para desbalance
         sample=False,  # Parámetro par "under" o "over" sample, por el momento no se puede modificar el factor de mágnitud así que no da buenos resultados,
         best_model_metric="macro_f1",  # "macro_f1" por defecto, "weighted_f1" o "accuracy" para guardar el mejor epoch del modelo con la mejor métrica seleccionada
         save_path=(
