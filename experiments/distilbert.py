@@ -11,6 +11,7 @@ from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import relative_path, set_random_seeds
 from pprint import pprint
 from transformers.training_args import TrainingArguments
+import sys
 
 # Nombre del modelo en HuggingFace
 model_name = "distilbert/distilbert-base-multilingual-cased"
@@ -106,5 +107,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
 
 
 if __name__ == "__main__":
-    run_classification(True)
-    run_detection(True, None)
+    if sys.argv[1] == "classification":
+        run_classification(True)
+    if sys.argv[1] == "detection":
+        run_detection(True, None)

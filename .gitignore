@@ -173,11 +173,11 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-/models
 temp
+**/mlruns
+**/models
 **/train_checkpoints
 **/trainer_output
-**/mlruns
 
 
 .python-version
