@@ -14,7 +14,7 @@ load_dotenv()
 
 # Cambiar semilla random
 set_random_seeds()
-model_name = "distilbert/distilbert-base-multilingual-cased"
+model_name = "gemini-2.0-flash-lite"
 # Prompts para predicciones
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",  # Humor alto
@@ -61,19 +61,22 @@ Output:
 
 
 if __name__ == "__main__":
-    # pprint(test_classification(classification_prompter, model="gemini-2.0-flash-lite"))
+    pprint(test_classification(classification_prompter, model=model_name))
     # pprint(test_detection(detection_prompter))
     # pprint(test_exclusive(detection_prompter))
     # pprint(test_lengths(detection_prompter))
     # pprint(test_repetition(detection_prompter))
-    pprint(
-        predict(
-            prompts,
-            ["1", "2", "3", "4", "5"],
-            classification_prompter,
-            model="gemini-2.0-flash-lite",
-        )
-    )
-    pprint(
-        predict(prompts, ["0", "1"], detection_prompter, model="gemini-2.0-flash-lite")
-    )
+    # pprint(
+    #     predict(prompts,
+    #             ["1", "2", "3", "4", "5"],
+    #             classification_prompter,
+    #             model=model_name,
+    #             threads=1)
+    # )
+    # pprint(
+    #     predict(prompts,
+    #             ["0", "1"],
+    #             detection_prompter,
+    #             model=model_name,
+    #             threads=1)
+    # )

@@ -14,9 +14,8 @@ from pprint import pprint
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
 
-set_random_seeds()
-model_name = "distilbert/distilgpt2"
-save_path = relative_path("../models/distilgpt2")
+model_name = "meta-llama/Llama-3.2-1B"
+save_path = relative_path("../models/llama32")
 default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
@@ -40,6 +39,7 @@ def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
 
 
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
+    set_random_seeds()
     arguments = TrainingArguments(
         num_train_epochs=4,
         lr_scheduler_type="cosine_with_min_lr",
@@ -76,8 +76,11 @@ def run_detection(
     prompter: Callable[[str], str],
     threshold: float | None,
 ):
+    set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=3,
+        num_train_epochs=4,
+        lr_scheduler_type="cosine_with_min_lr",
+        lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
         **default_arguments,
     )
     model, tokenizer = detection_model(model_name)
@@ -91,6 +94,7 @@ def run_detection(
             full_dataset=full_dataset,
             sample="under",
             threshold=threshold,
+            # class_weights=[1.3, 1],
             save_path=f"{save_path}/detection" if full_dataset else None,
         )
         pprint(train_logs)
@@ -104,12 +108,12 @@ def run_detection(
     pprint(predict_detection(model, tokenizer, prompts, arguments, prompter, threshold))
 
 
-def classification_tune_prompter(input: str):
+def classification_prompter(input: str):
     return f"Rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny.\n{input}"
 
 
-def detection_tune_prompter(input: str):
-    return f"Rate the humor of the following text on a scale from 0 to 1, where 0 means not funny and 1 means funny.\n{input}"
+def detection_prompter(input: str):
+    return f"Detect if the following text is funny 1 or not 0:\n{input}"
 
 
 if __name__ == "__main__":
