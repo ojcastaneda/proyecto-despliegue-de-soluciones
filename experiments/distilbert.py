@@ -11,10 +11,7 @@ from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import relative_path, set_random_seeds
 from pprint import pprint
 from transformers.training_args import TrainingArguments
-# from transformers.optimization import get_cosine_with_min_lr_schedule_with_warmup
 
-# Cambiar semilla random
-set_random_seeds()
 # Nombre del modelo en HuggingFace
 model_name = "distilbert/distilbert-base-multilingual-cased"
 # Carpeta para agrupar y guardar modelos de clasificación y detección
@@ -24,8 +21,8 @@ default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 40,
-    "per_device_train_batch_size": 40,
+    "per_device_eval_batch_size": 20,
+    "per_device_train_batch_size": 30,
 }
 # Prompts para predicciones
 prompts = [
@@ -40,14 +37,16 @@ prompts = [
 
 # Tarea de clasificación 1 a 5 (Los labels son 0 a 4).
 def run_classification(full_dataset: bool):
+    # Cambiar semilla random
+    set_random_seeds()
     # Función para crear el modelo, tokenizador y añadir un lora si es necesario
     model, tokenizer = classification_model(model_name)
     # Ajustes de trainer de Transformers https://huggingface.co/docs/transformers/v4.51.3/en/main_classes/trainer#transformers.TrainingArguments
     #  Lo más importante es usar bf16 o fp16 para VRAM, batch_sizes para la velocidad y train_epochs para los epochs
     arguments = TrainingArguments(
-        num_train_epochs=10,
-        lr_scheduler_type="cosine_with_restarts",
-        max_grad_norm=0.01,
+        num_train_epochs=4,
+        lr_scheduler_type="cosine_with_min_lr",
+        lr_scheduler_kwargs={"num_cycles": 8, "min_lr": 1e-5},
         **default_arguments,
     )
     # Entrenamiento con datos en español, Con full_dataset=True entrenan el modelo final, english_data=True añade el dataset en inglés
@@ -57,7 +56,7 @@ def run_classification(full_dataset: bool):
         arguments,
         full_dataset=full_dataset,  # Entrenamiento final
         english_data=False,  # Usar dataset de StupidStuff (incluso con traducciones no parece ser buena idea)
-        class_weights=[1, 1.25, 1.25, 2, 4],  # Pesos de clases para desbalance
+        class_weights=[1, 1.25, 1.25, 1.5, 4],  # Pesos de clases para desbalance
         sample=False,  # Parámetro par "under" o "over" sample, por el momento no se puede modificar el factor de mágnitud así que no da buenos resultados,
         best_model_metric="macro_f1",  # "macro_f1" por defecto, "weighted_f1" o "accuracy" para guardar el mejor epoch del modelo con la mejor métrica seleccionada
         save_path=(
@@ -78,12 +77,12 @@ def run_classification(full_dataset: bool):
 
 
 def run_detection(full_dataset: bool, threshold: float | None):
+    set_random_seeds()
     model, tokenizer = detection_model(model_name)
     arguments = TrainingArguments(
         num_train_epochs=3,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.5, "min_lr": 1e-5},
-        max_grad_norm=2,
+        lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
         **default_arguments,
     )
     train_logs, metrics = train_detection(
@@ -91,6 +90,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
         tokenizer,
         arguments,
         full_dataset=full_dataset,
+        class_weights=[1.1, 1],
         threshold=threshold,  # Threshold para predecir humor más alto requiere máyor probabiliad (0.75 es un buen valor pero depende del modelo)
         save_path=f"{save_path}/detection" if full_dataset else None,
     )
@@ -107,4 +107,4 @@ def run_detection(full_dataset: bool, threshold: float | None):
 
 if __name__ == "__main__":
     run_classification(True)
-    run_detection(True, 0.7)
+    run_detection(True, None)
