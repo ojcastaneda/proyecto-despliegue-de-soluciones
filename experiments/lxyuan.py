@@ -12,8 +12,8 @@ from humor_detection.utils import relative_path, set_random_seeds
 from pprint import pprint
 from transformers.training_args import TrainingArguments
 
-model_name = "dccuchile/bert-base-spanish-wwm-cased"
-save_path = relative_path("../models/bertdccuchile")
+model_name = "lxyuan/distilbert-base-multilingual-cased-sentiments-student"
+save_path = relative_path("../models/lxyuan")
 default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
