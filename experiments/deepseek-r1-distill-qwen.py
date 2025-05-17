@@ -48,7 +48,9 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
         r=128,
         task_type="CAUSAL_LM",
     )
-    model, tokenizer = classification_model(model_name, lora_configuration=lora)
+    model, tokenizer = classification_model(
+        model_name, lora_configuration=lora if train else None
+    )
     if train:
         train_logs, metrics = train_classification(
             model,
@@ -85,7 +87,9 @@ def run_detection(
         r=128,
         task_type="CAUSAL_LM",
     )
-    model, tokenizer = detection_model(model_name, lora_configuration=lora)
+    model, tokenizer = detection_model(
+        model_name, lora_configuration=lora if train else None
+    )
     if train:
         train_logs, metrics = train_detection(
             model,
