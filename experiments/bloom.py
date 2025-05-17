@@ -10,18 +10,22 @@ from humor_detection.test import (
 from humor_detection.train import train_classification, train_detection
 from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import relative_path, set_random_seeds
+from peft.tuners.lora import LoraConfig
 from pprint import pprint
-from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
+import sys
 
-model_name = "meta-llama/Llama-3.2-1B"
-save_path = relative_path("../models/llama32")
+model_name = "bigscience/bloom-1b1"
+save_path = relative_path("../models/bloom")
 default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 10,
-    "per_device_train_batch_size": 15,
+    "per_device_eval_batch_size": 5,
+    "per_device_train_batch_size": 5,
+    "optim": "adamw_8bit",
+    "gradient_checkpointing": True,
+    "eval_strategy": "steps",
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
@@ -33,32 +37,30 @@ prompts = [
 ]
 
 
-# Para GPT2 es necesario asignar un pad_token y puede que para otros modelos también
-def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
-    tokenizer.pad_token = tokenizer.eos_token
-
-
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=4,
+        num_train_epochs=1,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
+        lr_scheduler_kwargs={"num_cycles": 2, "min_lr": 1e-5},
+        eval_steps=500,
         **default_arguments,
     )
-    model, tokenizer = classification_model(
-        model_name,
-        lora_configuration=None,  # Hacer uso de configuración LoRA para causal LM ejemplo: LoraConfig(task_type="CAUSAL_LM")
-        tokenizer_name=None,  # Nombre de tokenizador especial en caso de no tener tokenizador
-        # classes=[] Lista de tokens para clasificación en caso de usar distinto a 0-1 para detección y 1-5 para clasificación
+    lora = LoraConfig(
+        lora_alpha=16,
+        lora_dropout=0.1,
+        r=32,
+        task_type="CAUSAL_LM",
     )
-    fix_tokenizer(tokenizer)
+    model, tokenizer = classification_model(
+        model_name, lora_configuration=lora if train else None
+    )
     if train:
         train_logs, metrics = train_classification(
             model,
             tokenizer,
             arguments,
-            prompter=prompter,  # Función para modificar los prompts, solo es útil en decoders
+            prompter=prompter,
             full_dataset=full_dataset,
             class_weights=[1, 1.3, 1.2, 1.75, 4],
             save_path=f"{save_path}/classification" if full_dataset else None,
@@ -66,7 +68,7 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
         pprint(train_logs)
         pprint(metrics)
     if not full_dataset or not train:
-        pprint(test_classification(model, tokenizer, arguments))
+        pprint(test_classification(model, tokenizer, arguments, prompter))
     pprint(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
 
@@ -78,13 +80,21 @@ def run_detection(
 ):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=4,
+        num_train_epochs=1,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
+        lr_scheduler_kwargs={"num_cycles": 2, "min_lr": 1e-5},
+        eval_steps=1000,
         **default_arguments,
     )
-    model, tokenizer = detection_model(model_name)
-    fix_tokenizer(tokenizer)
+    lora = LoraConfig(
+        lora_alpha=16,
+        lora_dropout=0.1,
+        r=32,
+        task_type="CAUSAL_LM",
+    )
+    model, tokenizer = detection_model(
+        model_name, lora_configuration=lora if train else None
+    )
     if train:
         train_logs, metrics = train_detection(
             model,
@@ -92,9 +102,7 @@ def run_detection(
             arguments,
             prompter=prompter,
             full_dataset=full_dataset,
-            sample="under",
             threshold=threshold,
-            # class_weights=[1.3, 1],
             save_path=f"{save_path}/detection" if full_dataset else None,
         )
         pprint(train_logs)
@@ -109,15 +117,54 @@ def run_detection(
 
 
 def classification_prompter(input: str):
-    return f"Rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny.\n{input}"
+    return f"""Rate the funniness of the following text on a scale from 1 to 5, based on how likely it is to make a person laugh or smile. Consider factors like cleverness, absurdity, surprise, or wordplay.
+
+Text: Un piano me caería excelente en estos momentos.
+Score: 5
+
+Text: —¿Tan linda y sin novio? —¿Tan grande y tan bobo?
+Score: 1
+
+Text: —¿Qué es eso que traes en tu bolsa?
+—Un AK-47.
+—No, al lado del AK-47.
+—Unos Chettos bolita.
+—¡No puedes entrar al Cine con comida!
+Score: 3
+
+Text: {input}
+Score: """
 
 
 def detection_prompter(input: str):
-    return f"Detect if the following text is funny 1 or not 0:\n{input}"
+    return f"""Detect if the following text is funny 1 or not 0 following the provided examples.
+
+Text: Un piano me caería excelente en estos momentos.
+Score: 1
+
+Text: Ni Jesús te ama.
+Score: 0
+
+Text: Jajajajajajajaj Idiota.
+Score: 0
+
+Text: —¿Qué es eso que traes en tu bolsa?
+—Un AK-47.
+—No, al lado del AK-47.
+—Unos Chettos bolita.
+—¡No puedes entrar al Cine con comida!
+Score: 1
+
+Text: {input}
+Score: """
 
 
 if __name__ == "__main__":
-    run_classification(True, False, classification_prompter)
-    # run_classification(True, True, classification_prompter)
-    run_detection(True, False, detection_prompter, None)
-    # run_detection(True, True, detection_prompter, None)
+    if sys.argv[1] == "classification":
+        run_classification(True, False, classification_prompter)
+    if sys.argv[1] == "train_classification":
+        run_classification(True, True, classification_prompter)
+    if sys.argv[1] == "detection":
+        run_detection(True, False, detection_prompter, 0.35)
+    if sys.argv[1] == "train_detection":
+        run_detection(True, True, detection_prompter, None)

@@ -13,7 +13,7 @@ from pprint import pprint
 from transformers.training_args import TrainingArguments
 import sys
 
-model_name = "google/gemma-3-1b-pt"
+model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
@@ -32,16 +32,16 @@ prompts = [
 
 def run_classification(prompter: Callable[[str], str]):
     set_random_seeds()
-    arguments = TrainingArguments(**default_arguments)
     model, tokenizer = classification_model(model_name)
-    pprint(test_classification(model, tokenizer, arguments))
+    arguments = TrainingArguments(**default_arguments)
+    pprint(test_classification(model, tokenizer, arguments, prompter))
     pprint(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
 
 def run_detection(prompter: Callable[[str], str], threshold: float | None):
     set_random_seeds()
-    arguments = TrainingArguments(**default_arguments)
     model, tokenizer = detection_model(model_name)
+    arguments = TrainingArguments(**default_arguments)
     pprint(test_detection(model, tokenizer, arguments, prompter, threshold))
     pprint(test_exclusive(model, tokenizer, arguments, prompter, threshold))
     pprint(test_lengths(model, tokenizer, arguments, prompter, threshold))
@@ -50,7 +50,23 @@ def run_detection(prompter: Callable[[str], str], threshold: float | None):
 
 
 def classification_prompter(input: str):
-    return f""""""
+    return f"""Rate the funniness of the following text on a scale from 1 to 5, based on how likely it is to make a person laugh or smile. Consider factors like cleverness, absurdity, surprise, or wordplay.
+
+Text: Un piano me caería excelente en estos momentos.
+Score: 5
+
+Text: —¿Tan linda y sin novio? —¿Tan grande y tan bobo?
+Score: 1
+
+Text: —¿Qué es eso que traes en tu bolsa?
+—Un AK-47.
+—No, al lado del AK-47.
+—Unos Chettos bolita.
+—¡No puedes entrar al Cine con comida!
+Score: 3
+
+Text: {input}
+Score: """
 
 
 def detection_prompter(input: str):
@@ -80,4 +96,4 @@ if __name__ == "__main__":
     if sys.argv[1] == "classification":
         run_classification(classification_prompter)
     if sys.argv[1] == "detection":
-        run_detection(detection_prompter, None)
+        run_detection(detection_prompter, 0.35)

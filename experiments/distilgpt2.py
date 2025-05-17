@@ -67,7 +67,7 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
         pprint(train_logs)
         pprint(metrics)
     if not full_dataset or not train:
-        pprint(test_classification(model, tokenizer, arguments))
+        pprint(test_classification(model, tokenizer, arguments, prompter))
     pprint(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
 

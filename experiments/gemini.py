@@ -12,52 +12,43 @@ from pprint import pprint
 
 load_dotenv()
 
-# Cambiar semilla random
 set_random_seeds()
 model_name = "gemini-2.0-flash-lite"
-# Prompts para predicciones
 prompts = [
-    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",  # Humor alto
-    "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",  # Humor
-    "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",  # Humor
-    "The brain surgeon changed my life. He really opened my mind.",  # No humor
-    "djasndoasndoa",  # No humor
-    "jajaja",  # No humor
+    "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
+    "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",
+    "El otro día unas chicas llamarón a mi puerta y me pidieron una pequeña donación para una piscina local.\nLes di un garrafa de agua.",
+    "The brain surgeon changed my life. He really opened my mind.",
+    "djasndoasndoa",
+    "jajaja",
 ]
 
 
 def classification_prompter(input: str):
-    return f"""You are a latino guy, rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny. Do not answer anything else.
-
-Text: Un piano me caería excelente en estos momentos.
-Output: 5
-
-Text: Ni Jesús te ama.
-Output: 1
-
-Text: Jajajajajajajaj Idiota.
-Output: 1
-
-Text: {input}
-Output: 
-"""
+    return f""""""
 
 
 def detection_prompter(input: str):
-    return f"""You are a latino guy, rate the humor of the following text on a scale from 0 to 1, where 0 means not funny and 1 means funny. Do not answer anything else.
+    return f"""Detect if the following text is funny 1 or not 0 following the provided examples. Do not answer anything else.
 
 Text: Un piano me caería excelente en estos momentos.
-Output: 1
+Score: 1
 
 Text: Ni Jesús te ama.
-Output: 0
+Score: 0
 
 Text: Jajajajajajajaj Idiota.
-Output: 0
+Score: 0
+
+Text: —¿Qué es eso que traes en tu bolsa?
+—Un AK-47.
+—No, al lado del AK-47.
+—Unos Chettos bolita.
+—¡No puedes entrar al Cine con comida!
+Score: 1
 
 Text: {input}
-Output: 
-"""
+Score: """
 
 
 if __name__ == "__main__":

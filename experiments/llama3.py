@@ -13,12 +13,13 @@ from pprint import pprint
 from transformers.training_args import TrainingArguments
 import sys
 
-model_name = "google/gemma-3-1b-pt"
+model_name = "meta-llama/Llama-3.2-1B"
 default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
     "per_device_eval_batch_size": 10,
+    "per_device_train_batch_size": 15,
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
@@ -34,7 +35,7 @@ def run_classification(prompter: Callable[[str], str]):
     set_random_seeds()
     arguments = TrainingArguments(**default_arguments)
     model, tokenizer = classification_model(model_name)
-    pprint(test_classification(model, tokenizer, arguments))
+    pprint(test_classification(model, tokenizer, arguments, prompter))
     pprint(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
 
