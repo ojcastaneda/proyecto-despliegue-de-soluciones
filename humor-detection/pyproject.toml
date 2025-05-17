@@ -17,5 +17,6 @@ dependencies = [
     "scikit-learn==1.6.1",
     "torch==2.7.0",
     "transformers==4.51.1",
+    "triton==3.3.0",
     "ydata-profiling==4.12.2"
 ]
