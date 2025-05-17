@@ -68,7 +68,7 @@ class CustomTrainer(Trainer):
         **kwargs,
     ):
         is_prediction = train_dataset is None and eval_dataset is None
-        optimize_arguments(arguments, model, is_prediction)
+        optimize_arguments(arguments, is_prediction)
         classes: list[str] | None = model.config.classes if hasattr(model.config, "classes") else None  # type: ignore
         if class_weights is not None:
             weights: list[float] = [0.0] * (
@@ -202,22 +202,22 @@ class CustomTrainer(Trainer):
         )
 
 
-def optimize_arguments(
-    arguments: TrainingArguments, model: PreTrainedModel | PeftModel, predict=False
-):
+def optimize_arguments(arguments: TrainingArguments, predict=False):
     arguments.set_save("no")
-    arguments.set_logging("no" if predict else "epoch")
+    if predict:
+        arguments.eval_strategy = "no"
+    elif arguments.eval_strategy == "no":
+        arguments.eval_strategy = "epoch"
+    steps = int(arguments.eval_steps or arguments.logging_steps)
+    arguments.set_logging(arguments.eval_strategy, steps)
     arguments.set_evaluate(
-        "no" if predict else "epoch",
-        batch_size=arguments.per_device_eval_batch_size,
-        accumulation_steps=1,
-        delay=0,
+        arguments.eval_strategy,
+        steps,
+        arguments.per_device_eval_batch_size,
+        1,
+        0,
     )
     arguments.logging_dir = None
-    arguments.report_to = "none"
-    # arguments.gradient_accumulation_steps = 1
-    # arguments.torch_empty_cache_steps = 1
-    # arguments.gradient_checkpointing = not isinstance(model, PeftModel)
 
 
 def log_metrics_mlflow(
@@ -249,7 +249,7 @@ def log_metrics_mlflow(
     model_output = "classification" if classes == 5 else "detection"
     default_arguments = TrainingArguments()
     if not isinstance(model, tuple):
-        optimize_arguments(default_arguments, model)
+        optimize_arguments(default_arguments)
     default_arguments = default_arguments.to_dict()
     if tokenizer is not None and model_name != tokenizer.name_or_path:
         parameters["tokenizer_model"] = tokenizer.name_or_path

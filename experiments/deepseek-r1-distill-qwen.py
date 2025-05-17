@@ -22,9 +22,10 @@ default_arguments = {
     "bf16_full_eval": True,
     "disable_tqdm": False,
     "per_device_eval_batch_size": 10,
-    "per_device_train_batch_size": 10,
+    "per_device_train_batch_size": 5,
     "optim": "adamw_8bit",
     "gradient_checkpointing": True,
+    "eval_strategy": "steps",
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
@@ -39,9 +40,10 @@ prompts = [
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=4,
+        num_train_epochs=1,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
+        eval_steps=500,
         **default_arguments,
     )
     lora = LoraConfig(
@@ -78,9 +80,10 @@ def run_detection(
 ):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=4,
+        num_train_epochs=1,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
+        eval_steps=1000,
         **default_arguments,
     )
     lora = LoraConfig(
