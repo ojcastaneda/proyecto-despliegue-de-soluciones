@@ -22,7 +22,9 @@ default_arguments = {
     "bf16_full_eval": True,
     "disable_tqdm": False,
     "per_device_eval_batch_size": 10,
-    "per_device_train_batch_size": 15,
+    "per_device_train_batch_size": 10,
+    "optim": "adamw_8bit",
+    "gradient_checkpointing": True,
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
@@ -45,7 +47,7 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
     lora = LoraConfig(
         lora_alpha=16,
         lora_dropout=0.1,
-        r=128,
+        r=32,
         task_type="CAUSAL_LM",
     )
     model, tokenizer = classification_model(
@@ -84,7 +86,7 @@ def run_detection(
     lora = LoraConfig(
         lora_alpha=16,
         lora_dropout=0.1,
-        r=128,
+        r=32,
         task_type="CAUSAL_LM",
     )
     model, tokenizer = detection_model(
@@ -97,7 +99,6 @@ def run_detection(
             arguments,
             prompter=prompter,
             full_dataset=full_dataset,
-            sample="under",
             threshold=threshold,
             # class_weights=[1.3, 1],
             save_path=f"{save_path}/detection" if full_dataset else None,
@@ -118,7 +119,26 @@ def classification_prompter(input: str):
 
 
 def detection_prompter(input: str):
-    return f"Detect if the following text is funny 1 or not 0.\n{input}"
+    return f"""Detect if the following text is funny 1 or not 0 following the provided examples.
+
+Text: Un piano me caería excelente en estos momentos.
+Score: 1
+
+Text: Ni Jesús te ama.
+Score: 0
+
+Text: Jajajajajajajaj Idiota.
+Score: 0
+
+Text: —¿Qué es eso que traes en tu bolsa?
+—Un AK-47.
+—No, al lado del AK-47.
+—Unos Chettos bolita.
+—¡No puedes entrar al Cine con comida!
+Score: 1
+
+Text: {input}
+Score: """
 
 
 if __name__ == "__main__":
@@ -127,6 +147,6 @@ if __name__ == "__main__":
     if sys.argv[1] == "train_classification":
         run_classification(True, True, classification_prompter)
     if sys.argv[1] == "detection":
-        run_detection(True, False, detection_prompter, None)
+        run_detection(True, False, detection_prompter, 0.35)
     if sys.argv[1] == "train_detection":
         run_detection(True, True, detection_prompter, None)

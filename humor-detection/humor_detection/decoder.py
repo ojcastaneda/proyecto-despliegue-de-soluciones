@@ -29,6 +29,7 @@ def create_model(
     )
     model = AutoModelForCausalLM.from_pretrained(model_name)
     if lora_configuration is not None:
+        model.enable_input_require_grads()
         model = get_peft_model(model, lora_configuration)
     model.config.classes = classes  # type: ignore
     return model, tokenizer  # type: ignore
