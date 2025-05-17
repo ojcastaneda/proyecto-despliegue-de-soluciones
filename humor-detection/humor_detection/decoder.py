@@ -7,7 +7,7 @@ from pandas import DataFrame
 from peft import LoraConfig, PeftModel, get_peft_model
 from scipy.special import softmax
 from shutil import rmtree
-from torch import Tensor, arange, compile
+from torch import Tensor, arange
 from transformers.configuration_utils import PretrainedConfig
 from transformers.data.data_collator import DataCollatorForLanguageModeling
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
@@ -27,13 +27,10 @@ def create_model(
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         model_name if tokenizer_name is None else tokenizer_name
     )
+    model = AutoModelForCausalLM.from_pretrained(model_name)
     if lora_configuration is not None:
-        model = AutoModelForCausalLM.from_pretrained(model_name)
         model.enable_input_require_grads()
         model = get_peft_model(model, lora_configuration)
-        model = compile(model)
-    else:
-        model = AutoModelForCausalLM.from_pretrained(model_name)
     model.config.classes = classes  # type: ignore
     return model, tokenizer  # type: ignore
 
@@ -169,9 +166,7 @@ def preprocess_dataset(
     def _preprocess_dataset(dataset: DataFrame):
         if "score" in dataset.columns:
             dataset["score"] = dataset["score"].map(score_to_class)
-        return Dataset.from_pandas(dataset).map(
-            tokenize_function, batched=True, remove_columns=["text", "score"]
-        )
+        return Dataset.from_pandas(dataset).map(tokenize_function, batched=True)
 
     return _preprocess_dataset
 

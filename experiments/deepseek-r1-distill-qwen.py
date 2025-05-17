@@ -81,7 +81,6 @@ def run_detection(
         num_train_epochs=4,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
-        remove_unused_columns=False,
         **default_arguments,
     )
     lora = LoraConfig(
