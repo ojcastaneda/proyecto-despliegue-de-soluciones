@@ -13,6 +13,7 @@ from humor_detection.utils import relative_path, set_random_seeds
 from pprint import pprint
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
+import sys
 
 model_name = "distilbert/distilgpt2"
 save_path = relative_path("../models/distilgpt2")
@@ -116,7 +117,11 @@ def detection_prompter(input: str):
 
 
 if __name__ == "__main__":
-    run_classification(True, False, classification_prompter)
-    # run_classification(True, True, classification_prompter)
-    run_detection(True, False, detection_prompter, None)
-    # run_detection(True, True, detection_prompter, None)
+    if sys.argv[1] == "classification":
+        run_classification(True, False, classification_prompter)
+    if sys.argv[1] == "train_classification":
+        run_classification(True, True, classification_prompter)
+    if sys.argv[1] == "detection":
+        run_detection(True, False, detection_prompter, None)
+    if sys.argv[1] == "train_detection":
+        run_detection(True, True, detection_prompter, None)
