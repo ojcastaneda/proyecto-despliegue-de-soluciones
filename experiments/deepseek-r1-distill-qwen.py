@@ -10,9 +10,10 @@ from humor_detection.test import (
 from humor_detection.train import train_classification, train_detection
 from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import relative_path, set_random_seeds
+from peft.tuners.lora import LoraConfig
 from pprint import pprint
-from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
+import sys
 
 model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 save_path = relative_path("../models/deepseek-r1-distill-qwen")
@@ -20,7 +21,7 @@ default_arguments = {
     "bf16": True,
     "bf16_full_eval": True,
     "disable_tqdm": False,
-    "per_device_eval_batch_size": 5,
+    "per_device_eval_batch_size": 10,
     "per_device_train_batch_size": 15,
 }
 prompts = [
@@ -33,11 +34,6 @@ prompts = [
 ]
 
 
-# Para GPT2 es necesario asignar un pad_token y puede que para otros modelos también
-def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
-    tokenizer.pad_token = tokenizer.eos_token
-
-
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
     set_random_seeds()
     arguments = TrainingArguments(
@@ -46,19 +42,19 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
         lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
         **default_arguments,
     )
-    model, tokenizer = classification_model(
-        model_name,
-        lora_configuration=None,  # Hacer uso de configuración LoRA para causal LM ejemplo: LoraConfig(task_type="CAUSAL_LM")
-        tokenizer_name=None,  # Nombre de tokenizador especial en caso de no tener tokenizador
-        # classes=[] Lista de tokens para clasificación en caso de usar distinto a 0-1 para detección y 1-5 para clasificación
+    lora = LoraConfig(
+        lora_alpha=16,
+        lora_dropout=0.1,
+        r=128,
+        task_type="CAUSAL_LM",
     )
-    fix_tokenizer(tokenizer)
+    model, tokenizer = classification_model(model_name, lora_configuration=lora)
     if train:
         train_logs, metrics = train_classification(
             model,
             tokenizer,
             arguments,
-            prompter=prompter,  # Función para modificar los prompts, solo es útil en decoders
+            prompter=prompter,
             full_dataset=full_dataset,
             class_weights=[1, 1.3, 1.2, 1.75, 4],
             save_path=f"{save_path}/classification" if full_dataset else None,
@@ -83,8 +79,13 @@ def run_detection(
         lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
         **default_arguments,
     )
-    model, tokenizer = detection_model(model_name)
-    fix_tokenizer(tokenizer)
+    lora = LoraConfig(
+        lora_alpha=16,
+        lora_dropout=0.1,
+        r=128,
+        task_type="CAUSAL_LM",
+    )
+    model, tokenizer = detection_model(model_name, lora_configuration=lora)
     if train:
         train_logs, metrics = train_detection(
             model,
@@ -113,11 +114,15 @@ def classification_prompter(input: str):
 
 
 def detection_prompter(input: str):
-    return f"Detect if the following text is funny 1 or not 0:\n{input}"
+    return f"Detect if the following text is funny 1 or not 0.\n{input}"
 
 
 if __name__ == "__main__":
-    run_classification(True, False, classification_prompter)
-    # run_classification(True, True, classification_prompter)
-    run_detection(True, False, detection_prompter, None)
-    # run_detection(True, True, detection_prompter, None)
+    if sys.argv[1] == "classification":
+        run_classification(True, False, classification_prompter)
+    if sys.argv[1] == "train_classification":
+        run_classification(True, True, classification_prompter)
+    if sys.argv[1] == "detection":
+        run_detection(True, False, detection_prompter, None)
+    if sys.argv[1] == "train_detection":
+        run_detection(True, True, detection_prompter, None)

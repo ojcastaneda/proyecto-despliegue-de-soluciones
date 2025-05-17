@@ -113,7 +113,7 @@ def classification_prompter(input: str):
 
 
 def detection_prompter(input: str):
-    return f"Detect if the following text is funny 1 or not 0:\n{input}"
+    return f"Detect if the following text is funny 1 or not 0.\n{input}"
 
 
 if __name__ == "__main__":
