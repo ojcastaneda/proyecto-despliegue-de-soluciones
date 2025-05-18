@@ -43,13 +43,14 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
         max_steps=3000,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 2, "min_lr": 1e-5},
+        learning_rate=1e-4,
         eval_steps=500,
         **default_arguments,
     )
     lora = LoraConfig(
-        lora_alpha=16,
+        lora_alpha=64,
         lora_dropout=0.1,
-        r=32,
+        r=64,
         task_type="CAUSAL_LM",
     )
     model, tokenizer = classification_model(
@@ -82,14 +83,15 @@ def run_detection(
     arguments = TrainingArguments(
         max_steps=6000,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 2, "min_lr": 1e-5},
+        lr_scheduler_kwargs={"num_cycles": 0.6, "min_lr": 1e-5},
+        learning_rate=1e-4,
         eval_steps=1000,
         **default_arguments,
     )
     lora = LoraConfig(
-        lora_alpha=16,
+        lora_alpha=64,
         lora_dropout=0.1,
-        r=32,
+        r=64,
         task_type="CAUSAL_LM",
     )
     model, tokenizer = detection_model(
