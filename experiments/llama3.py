@@ -1,4 +1,5 @@
-from typing import Callable
+from dotenv import load_dotenv
+from huggingface_hub import HfApi
 from humor_detection.decoder import classification_model, detection_model
 from humor_detection.test import (
     test_classification,
@@ -9,9 +10,15 @@ from humor_detection.test import (
 )
 from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import set_random_seeds
+from os import environ
 from pprint import pprint
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
+from typing import Callable
 import sys
+
+load_dotenv()
+HfApi(environ.get("HUGGINGFACE_HUB_TOKEN"))
 
 model_name = "meta-llama/Llama-3.2-1B"
 default_arguments = {
@@ -19,7 +26,6 @@ default_arguments = {
     "bf16_full_eval": True,
     "disable_tqdm": False,
     "per_device_eval_batch_size": 10,
-    "per_device_train_batch_size": 15,
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
@@ -31,10 +37,15 @@ prompts = [
 ]
 
 
+def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
+    tokenizer.pad_token = tokenizer.eos_token
+
+
 def run_classification(prompter: Callable[[str], str]):
     set_random_seeds()
     arguments = TrainingArguments(**default_arguments)
     model, tokenizer = classification_model(model_name)
+    fix_tokenizer(tokenizer)
     pprint(test_classification(model, tokenizer, arguments, prompter))
     pprint(predict_classification(model, tokenizer, prompts, arguments, prompter))
 
@@ -43,6 +54,7 @@ def run_detection(prompter: Callable[[str], str], threshold: float | None):
     set_random_seeds()
     arguments = TrainingArguments(**default_arguments)
     model, tokenizer = detection_model(model_name)
+    fix_tokenizer(tokenizer)
     pprint(test_detection(model, tokenizer, arguments, prompter, threshold))
     pprint(test_exclusive(model, tokenizer, arguments, prompter, threshold))
     pprint(test_lengths(model, tokenizer, arguments, prompter, threshold))
@@ -51,7 +63,16 @@ def run_detection(prompter: Callable[[str], str], threshold: float | None):
 
 
 def classification_prompter(input: str):
-    return f""""""
+    return f"""{input}
+========================================
+- Question:
+How funny is this text?
+1) Slightly
+2) Mildly
+3) Moderately
+4) Very
+5) Incredibly
+The answer is """
 
 
 def detection_prompter(input: str):

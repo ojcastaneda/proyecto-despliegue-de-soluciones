@@ -46,7 +46,7 @@ def run_classification(full_dataset: bool):
         tokenizer,
         arguments,
         full_dataset=full_dataset,
-        class_weights=[1, 1.25, 1.2, 1.75, 4],
+        # class_weights=[1, 1.25, 1.2, 1.75, 4],
         save_path=(f"{save_path}/classification" if full_dataset else None),
     )
     pprint(train_logs)

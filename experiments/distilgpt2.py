@@ -44,24 +44,19 @@ def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str]
     arguments = TrainingArguments(
         num_train_epochs=4,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
+        lr_scheduler_kwargs={"num_cycles": 2, "min_lr": 1e-5},
         **default_arguments,
     )
-    model, tokenizer = classification_model(
-        model_name,
-        lora_configuration=None,  # Hacer uso de configuración LoRA para causal LM ejemplo: LoraConfig(task_type="CAUSAL_LM")
-        tokenizer_name=None,  # Nombre de tokenizador especial en caso de no tener tokenizador
-        # classes=[] Lista de tokens para clasificación en caso de usar distinto a 0-1 para detección y 1-5 para clasificación
-    )
+    model, tokenizer = classification_model(model_name)
     fix_tokenizer(tokenizer)
     if train:
         train_logs, metrics = train_classification(
             model,
             tokenizer,
             arguments,
-            prompter=prompter,  # Función para modificar los prompts, solo es útil en decoders
+            prompter=prompter,
             full_dataset=full_dataset,
-            class_weights=[1, 1.3, 1.2, 1.75, 4],
+            # class_weights=[1, 1.2, 1.1, 1.75, 4],
             save_path=f"{save_path}/classification" if full_dataset else None,
         )
         pprint(train_logs)
@@ -81,7 +76,7 @@ def run_detection(
     arguments = TrainingArguments(
         num_train_epochs=4,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
+        lr_scheduler_kwargs={"num_cycles": 0.6, "min_lr": 1e-5},
         **default_arguments,
     )
     model, tokenizer = detection_model(model_name)
@@ -94,7 +89,7 @@ def run_detection(
             prompter=prompter,
             full_dataset=full_dataset,
             threshold=threshold,
-            class_weights=[1.3, 1],
+            class_weights=[1.2, 1],
             save_path=f"{save_path}/detection" if full_dataset else None,
         )
         pprint(train_logs)
@@ -109,11 +104,20 @@ def run_detection(
 
 
 def classification_prompter(input: str):
-    return f"Rate the humor of the following text on a scale from 1 to 5, where 1 means not funny and 5 means very funny.\n{input}"
+    return f"""{input}
+How funny is this text?
+1) Slightly
+2) Mildly
+3) Moderately
+4) Very
+5) Incredibly
+The text is """
 
 
 def detection_prompter(input: str):
-    return f"Detect if the following text is funny 1 or not 0.\n{input}"
+    return f"""{input}
+Detect if the text is funny 1 or not 0.
+Is the text funny? The text is """
 
 
 if __name__ == "__main__":

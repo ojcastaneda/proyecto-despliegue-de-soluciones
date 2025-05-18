@@ -40,7 +40,7 @@ prompts = [
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=1,
+        max_steps=3000,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 2, "min_lr": 1e-5},
         eval_steps=500,
@@ -80,7 +80,7 @@ def run_detection(
 ):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=1,
+        max_steps=6000,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 2, "min_lr": 1e-5},
         eval_steps=1000,
@@ -117,46 +117,20 @@ def run_detection(
 
 
 def classification_prompter(input: str):
-    return f"""Rate the funniness of the following text on a scale from 1 to 5, based on how likely it is to make a person laugh or smile. Consider factors like cleverness, absurdity, surprise, or wordplay.
-
-Text: Un piano me caería excelente en estos momentos.
-Score: 5
-
-Text: —¿Tan linda y sin novio? —¿Tan grande y tan bobo?
-Score: 1
-
-Text: —¿Qué es eso que traes en tu bolsa?
-—Un AK-47.
-—No, al lado del AK-47.
-—Unos Chettos bolita.
-—¡No puedes entrar al Cine con comida!
-Score: 3
-
-Text: {input}
-Score: """
+    return f"""{input}
+How funny is this text?
+1) Slightly
+2) Mildly
+3) Moderately
+4) Very
+5) Incredibly
+The text is """
 
 
 def detection_prompter(input: str):
-    return f"""Detect if the following text is funny 1 or not 0 following the provided examples.
-
-Text: Un piano me caería excelente en estos momentos.
-Score: 1
-
-Text: Ni Jesús te ama.
-Score: 0
-
-Text: Jajajajajajajaj Idiota.
-Score: 0
-
-Text: —¿Qué es eso que traes en tu bolsa?
-—Un AK-47.
-—No, al lado del AK-47.
-—Unos Chettos bolita.
-—¡No puedes entrar al Cine con comida!
-Score: 1
-
-Text: {input}
-Score: """
+    return f"""{input}
+Detect if the text is funny 1 or not 0.
+Is the text funny? The text is """
 
 
 if __name__ == "__main__":
@@ -165,6 +139,6 @@ if __name__ == "__main__":
     if sys.argv[1] == "train_classification":
         run_classification(True, True, classification_prompter)
     if sys.argv[1] == "detection":
-        run_detection(True, False, detection_prompter, 0.35)
+        run_detection(True, False, detection_prompter, None)
     if sys.argv[1] == "train_detection":
         run_detection(True, True, detection_prompter, None)

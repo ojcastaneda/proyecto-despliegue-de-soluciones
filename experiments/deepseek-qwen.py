@@ -50,23 +50,16 @@ def run_detection(prompter: Callable[[str], str], threshold: float | None):
 
 
 def classification_prompter(input: str):
-    return f"""Rate the funniness of the following text on a scale from 1 to 5, based on how likely it is to make a person laugh or smile. Consider factors like cleverness, absurdity, surprise, or wordplay.
-
-Text: Un piano me caería excelente en estos momentos.
-Score: 5
-
-Text: —¿Tan linda y sin novio? —¿Tan grande y tan bobo?
-Score: 1
-
-Text: —¿Qué es eso que traes en tu bolsa?
-—Un AK-47.
-—No, al lado del AK-47.
-—Unos Chettos bolita.
-—¡No puedes entrar al Cine con comida!
-Score: 3
-
-Text: {input}
-Score: """
+    return f"""{input}
+========================================
+- Question:
+How funny is this text?
+1) Slightly
+2) Mildly
+3) Moderately
+4) Very
+5) Incredibly
+The answer is """
 
 
 def detection_prompter(input: str):

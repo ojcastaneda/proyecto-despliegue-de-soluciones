@@ -148,7 +148,7 @@ class HAHATrain(DatasetProcessor):
                     break
             if not majority_found:
                 for i in range(5, 0, -1):
-                    if (votes[i - 1] / total_votes) > 0.2:
+                    if (votes[i - 1] / total_votes) >= 0.25:
                         result.loc[idx, "score"] = i
                         break
         result["score"] = result["score"].clip(0, 5)

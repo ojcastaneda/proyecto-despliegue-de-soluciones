@@ -1,4 +1,5 @@
-from typing import Callable
+from dotenv import load_dotenv
+from huggingface_hub import HfApi
 from humor_detection.decoder import classification_model, detection_model
 from humor_detection.test import (
     test_classification,
@@ -9,9 +10,14 @@ from humor_detection.test import (
 )
 from humor_detection.predict import predict_classification, predict_detection
 from humor_detection.utils import set_random_seeds
+from os import environ
 from pprint import pprint
 from transformers.training_args import TrainingArguments
+from typing import Callable
 import sys
+
+load_dotenv()
+HfApi(environ.get("HUGGINGFACE_HUB_TOKEN"))
 
 model_name = "google/gemma-3-1b-pt"
 default_arguments = {
@@ -50,7 +56,16 @@ def run_detection(prompter: Callable[[str], str], threshold: float | None):
 
 
 def classification_prompter(input: str):
-    return f""""""
+    return f"""{input}
+========================================
+- Question:
+How funny is this text?
+1) Slightly
+2) Mildly
+3) Moderately
+4) Very
+5) Incredibly
+The answer is """
 
 
 def detection_prompter(input: str):
