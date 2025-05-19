@@ -124,6 +124,7 @@ class CustomTrainer(Trainer):
     def train(self, *args, **kwargs):
         self.best_model = None
         self.train_logs = {
+            "step": [],
             "train_loss": [],
             "loss": [],
             "accuracy": [],
@@ -162,6 +163,7 @@ class CustomTrainer(Trainer):
             return output
         if "loss" in logs:
             self.train_logs["train_loss"].append(logs["loss"])
+            self.train_logs["step"].append(self.state.global_step)
         if "eval_accuracy" in logs:
             self.train_logs["loss"].append(logs["eval_loss"])
             self.train_logs["accuracy"].append(logs["eval_accuracy"])
@@ -207,7 +209,7 @@ def optimize_arguments(arguments: TrainingArguments, predict=False):
     if predict:
         arguments.eval_strategy = "no"
     elif arguments.eval_strategy == "no":
-        arguments.eval_strategy = "epoch"
+        arguments.eval_strategy = "steps"
     steps = int(arguments.eval_steps or arguments.logging_steps)
     arguments.set_logging(arguments.eval_strategy, steps)
     arguments.set_evaluate(

@@ -42,7 +42,7 @@ def fix_tokenizer(tokenizer: PreTrainedTokenizerBase):
 def run_classification(full_dataset: bool, train: bool, prompter: Callable[[str], str]):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=4,
+        max_steps=3000,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
         **default_arguments,
@@ -73,7 +73,8 @@ def run_detection(
 ):
     set_random_seeds()
     arguments = TrainingArguments(
-        num_train_epochs=4,
+        max_steps=8000,
+        eval_steps=1000,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 0.6, "min_lr": 1e-5},
         **default_arguments,

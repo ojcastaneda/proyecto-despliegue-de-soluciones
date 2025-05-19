@@ -25,7 +25,16 @@ prompts = [
 
 
 def classification_prompter(input: str):
-    return f""""""
+    return f"""{input}
+========================================
+- Question:
+How funny is this text? Do not answer anything else.
+1) Slightly
+2) Mildly
+3) Moderately
+4) Very
+5) Incredibly
+The answer is """
 
 
 def detection_prompter(input: str):
@@ -53,21 +62,19 @@ Score: """
 
 if __name__ == "__main__":
     pprint(test_classification(classification_prompter, model=model_name))
-    # pprint(test_detection(detection_prompter))
-    # pprint(test_exclusive(detection_prompter))
-    # pprint(test_lengths(detection_prompter))
-    # pprint(test_repetition(detection_prompter))
-    # pprint(
-    #     predict(prompts,
-    #             ["1", "2", "3", "4", "5"],
-    #             classification_prompter,
-    #             model=model_name,
-    #             threads=1)
-    # )
-    # pprint(
-    #     predict(prompts,
-    #             ["0", "1"],
-    #             detection_prompter,
-    #             model=model_name,
-    #             threads=1)
-    # )
+    pprint(test_detection(detection_prompter))
+    pprint(test_exclusive(detection_prompter))
+    pprint(test_lengths(detection_prompter))
+    pprint(test_repetition(detection_prompter))
+    pprint(
+        predict(
+            prompts,
+            ["1", "2", "3", "4", "5"],
+            classification_prompter,
+            model=model_name,
+            threads=1,
+        )
+    )
+    pprint(
+        predict(prompts, ["0", "1"], detection_prompter, model=model_name, threads=1)
+    )

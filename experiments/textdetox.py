@@ -36,10 +36,10 @@ def run_classification(full_dataset: bool):
     set_random_seeds()
     model, tokenizer = classification_model(model_name)
     arguments = TrainingArguments(
-        num_train_epochs=4,
+        max_steps=2000,
+        eval_steps=250,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 1.2, "min_lr": 1e-5},
-        max_grad_norm=5,
+        lr_scheduler_kwargs={"num_cycles": 0.8, "min_lr": 1e-5},
         **default_arguments,
     )
     train_logs, metrics = train_classification(
@@ -60,7 +60,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
     set_random_seeds()
     model, tokenizer = detection_model(model_name)
     arguments = TrainingArguments(
-        num_train_epochs=3,
+        max_steps=3000,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 0.7, "min_lr": 1e-5},
         **default_arguments,
