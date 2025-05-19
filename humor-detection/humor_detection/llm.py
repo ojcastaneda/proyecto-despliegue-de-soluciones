@@ -14,6 +14,7 @@ from google.genai.types import (
     HarmBlockThreshold,
     HarmCategory,
     SafetySetting,
+    ThinkingConfig
 )
 from os import environ
 from pandas import DataFrame
@@ -49,6 +50,7 @@ def _predict(args: tuple[str, str, list[str]]):
                 threshold=HarmBlockThreshold.BLOCK_NONE,
             ),
         ],
+        thinking_config=ThinkingConfig(thinking_budget=0),
     )
     prediction = client.models.generate_content(
         model=model, contents=text, config=config
@@ -60,7 +62,7 @@ def predict(
     prompts: list[str],
     classes: list[str],
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-preview-04-17",
     threads=5,
 ):
     with ThreadPoolExecutor(max_workers=threads) as executor:
@@ -103,7 +105,7 @@ def test(
 
 def test_classification(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-preview-04-17",
     classes=["1", "2", "3", "4", "5"],
     threads=5,
 ):
@@ -114,7 +116,7 @@ def test_classification(
 
 def test_detection(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-preview-04-17",
     classes=["0", "1"],
     threads=5,
 ):
@@ -125,7 +127,7 @@ def test_detection(
 
 def test_exclusive(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-preview-04-17",
     classes=["0", "1"],
     threads=5,
 ):
@@ -136,7 +138,7 @@ def test_exclusive(
 
 def test_lengths(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-preview-04-17",
     classes=["0", "1"],
     threads=5,
 ):
@@ -151,7 +153,7 @@ def test_lengths(
 
 def test_repetition(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash",
+    model="gemini-2.5-flash-preview-04-17",
     classes=["0", "1"],
     threads=5,
 ):

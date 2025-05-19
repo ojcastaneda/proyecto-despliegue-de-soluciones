@@ -14,7 +14,6 @@ import sys
 load_dotenv()
 
 set_random_seeds()
-model_name = "gemini-2.0-flash-lite"
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
     "¿Cuál es el último animal que subió al arca de Noé? El del-fin.",
