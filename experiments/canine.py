@@ -21,8 +21,6 @@ default_arguments = {
     "disable_tqdm": False,
     "per_device_eval_batch_size": 20,
     "per_device_train_batch_size": 30,
-    "torch_empty_cache_steps": 1,
-    "eval_accumulation_steps":1,
 }
 prompts = [
     "- Martínez, queda usted despedido.\n- Pero, si yo no he hecho nada.\n- Por eso, por eso.",
@@ -41,7 +39,7 @@ def run_classification(full_dataset: bool):
         max_steps=1500,
         eval_steps=250,
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"num_cycles": 4, "min_lr": 1e-5},
+        lr_scheduler_kwargs={"num_cycles": 0.6, "min_lr": 1e-5},
         **default_arguments,
     )
     train_logs, metrics = train_classification(
@@ -49,6 +47,7 @@ def run_classification(full_dataset: bool):
         tokenizer,
         arguments,
         full_dataset=full_dataset,
+        class_weights=[1, 1, 1, 1.5, 3],
         save_path=(f"{save_path}/classification" if full_dataset else None),
     )
     pprint(train_logs)
@@ -72,7 +71,7 @@ def run_detection(full_dataset: bool, threshold: float | None):
         tokenizer,
         arguments,
         full_dataset=full_dataset,
-        class_weights=[1.1, 1],
+        class_weights=[1.3, 1],
         threshold=threshold,
         save_path=f"{save_path}/detection" if full_dataset else None,
     )
