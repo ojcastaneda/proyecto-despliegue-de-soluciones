@@ -9,7 +9,12 @@ from .dataset import (
 )
 from .utils import calculate_metrics, log_metrics_mlflow
 from google.genai import Client
-from google.genai.types import GenerateContentConfig
+from google.genai.types import (
+    GenerateContentConfig,
+    HarmBlockThreshold,
+    HarmCategory,
+    SafetySetting,
+)
 from os import environ
 from pandas import DataFrame
 from transformers.training_args import TrainingArguments
@@ -19,7 +24,36 @@ from typing import Callable
 def _predict(args: tuple[str, str, list[str]]):
     text, model, classes = args
     client = Client(api_key=environ.get("GEMINI_API_KEY"))
-    config = GenerateContentConfig(temperature=0, max_output_tokens=1)
+    config = GenerateContentConfig(
+        temperature=0,
+        max_output_tokens=1,
+        safety_settings=[
+            SafetySetting(
+                category=HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                threshold=HarmBlockThreshold.BLOCK_NONE,
+            ),
+            SafetySetting(
+                category=HarmCategory.HARM_CATEGORY_HARASSMENT,
+                threshold=HarmBlockThreshold.BLOCK_NONE,
+            ),
+            SafetySetting(
+                category=HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                threshold=HarmBlockThreshold.BLOCK_NONE,
+            ),
+            SafetySetting(
+                category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                threshold=HarmBlockThreshold.BLOCK_NONE,
+            ),
+            SafetySetting(
+                category=HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+                threshold=HarmBlockThreshold.BLOCK_NONE,
+            ),
+            SafetySetting(
+                category=HarmCategory.HARM_CATEGORY_UNSPECIFIED,
+                threshold=HarmBlockThreshold.BLOCK_NONE,
+            ),
+        ],
+    )
     prediction = client.models.generate_content(
         model=model, contents=text, config=config
     ).text
@@ -31,7 +65,7 @@ def predict(
     classes: list[str],
     prompter: Callable[[str], str],
     model="gemini-2.0-flash",
-    threads=2,
+    threads=1,
 ):
     with ThreadPoolExecutor(max_workers=threads) as executor:
         labels = list(
@@ -75,7 +109,7 @@ def test_classification(
     prompter: Callable[[str], str],
     model="gemini-2.0-flash",
     classes=["1", "2", "3", "4", "5"],
-    threads=2,
+    threads=1,
 ):
     return test(
         load_csv(Test.classification_path), model, prompter, classes, threads, "test"
@@ -86,7 +120,7 @@ def test_detection(
     prompter: Callable[[str], str],
     model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=2,
+    threads=1,
 ):
     return test(
         load_csv(Test.detection_path), model, prompter, classes, threads, "test"
@@ -97,7 +131,7 @@ def test_exclusive(
     prompter: Callable[[str], str],
     model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=2,
+    threads=1,
 ):
     return test(
         load_csv(Exclusive), model, prompter, classes, threads, "test_exclusive"
@@ -108,7 +142,7 @@ def test_lengths(
     prompter: Callable[[str], str],
     model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=2,
+    threads=1,
 ):
     long = test(
         load_csv(LongLengths), model, prompter, classes, threads, "test_long_lengths"
@@ -123,7 +157,7 @@ def test_repetition(
     prompter: Callable[[str], str],
     model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=2,
+    threads=1,
 ):
     return test(
         load_csv(Repetition), model, prompter, classes, threads, "test_repetition"
