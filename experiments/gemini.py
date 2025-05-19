@@ -9,6 +9,7 @@ from humor_detection.llm import (
 )
 from humor_detection.utils import set_random_seeds
 from pprint import pprint
+import sys
 
 load_dotenv()
 
@@ -61,10 +62,12 @@ Score: """
 
 
 if __name__ == "__main__":
-    pprint(test_classification(classification_prompter))
-    pprint(test_detection(detection_prompter))
-    pprint(test_exclusive(detection_prompter))
-    pprint(test_lengths(detection_prompter))
-    pprint(test_repetition(detection_prompter))
-    pprint(predict(prompts, ["1", "2", "3", "4", "5"], classification_prompter))
-    pprint(predict(prompts, ["0", "1"], detection_prompter))
+    if sys.argv[1] == "classification":
+        pprint(test_classification(classification_prompter))
+        pprint(predict(prompts, ["1", "2", "3", "4", "5"], classification_prompter))
+    if sys.argv[1] == "detection":
+        pprint(test_detection(detection_prompter))
+        pprint(test_exclusive(detection_prompter))
+        pprint(test_lengths(detection_prompter))
+        pprint(test_repetition(detection_prompter))
+        pprint(predict(prompts, ["0", "1"], detection_prompter))
