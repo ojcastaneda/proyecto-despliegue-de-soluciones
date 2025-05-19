@@ -48,10 +48,6 @@ def _predict(args: tuple[str, str, list[str]]):
                 category=HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
                 threshold=HarmBlockThreshold.BLOCK_NONE,
             ),
-            SafetySetting(
-                category=HarmCategory.HARM_CATEGORY_UNSPECIFIED,
-                threshold=HarmBlockThreshold.BLOCK_NONE,
-            ),
         ],
     )
     prediction = client.models.generate_content(
