@@ -50,7 +50,6 @@ def _predict(args: tuple[str, str, list[str]]):
                 threshold=HarmBlockThreshold.BLOCK_NONE,
             ),
         ],
-        thinking_config=ThinkingConfig(thinking_budget=0),
     )
     prediction = client.models.generate_content(
         model=model, contents=text, config=config
@@ -62,8 +61,8 @@ def predict(
     prompts: list[str],
     classes: list[str],
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash-preview-04-17",
-    threads=5,
+    model="gemini-2.0-flash",
+    threads=10,
 ):
     with ThreadPoolExecutor(max_workers=threads) as executor:
         labels = list(
@@ -105,9 +104,9 @@ def test(
 
 def test_classification(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash-preview-04-17",
+    model="gemini-2.0-flash",
     classes=["1", "2", "3", "4", "5"],
-    threads=5,
+    threads=10,
 ):
     return test(
         load_csv(Test.classification_path), model, prompter, classes, threads, "test"
@@ -116,9 +115,9 @@ def test_classification(
 
 def test_detection(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash-preview-04-17",
+    model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=5,
+    threads=10,
 ):
     return test(
         load_csv(Test.detection_path), model, prompter, classes, threads, "test"
@@ -127,9 +126,9 @@ def test_detection(
 
 def test_exclusive(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash-preview-04-17",
+    model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=5,
+    threads=10,
 ):
     return test(
         load_csv(Exclusive), model, prompter, classes, threads, "test_exclusive"
@@ -138,9 +137,9 @@ def test_exclusive(
 
 def test_lengths(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash-preview-04-17",
+    model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=5,
+    threads=10,
 ):
     long = test(
         load_csv(LongLengths), model, prompter, classes, threads, "test_long_lengths"
@@ -153,9 +152,9 @@ def test_lengths(
 
 def test_repetition(
     prompter: Callable[[str], str],
-    model="gemini-2.5-flash-preview-04-17",
+    model="gemini-2.0-flash",
     classes=["0", "1"],
-    threads=5,
+    threads=10,
 ):
     return test(
         load_csv(Repetition), model, prompter, classes, threads, "test_repetition"
