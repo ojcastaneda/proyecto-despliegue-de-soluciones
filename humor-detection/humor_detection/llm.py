@@ -14,7 +14,6 @@ from google.genai.types import (
     HarmBlockThreshold,
     HarmCategory,
     SafetySetting,
-    ThinkingConfig
 )
 from os import environ
 from pandas import DataFrame
@@ -22,9 +21,9 @@ from transformers.training_args import TrainingArguments
 from typing import Callable
 
 
-def _predict(args: tuple[str, str, list[str]]):
-    text, model, classes = args
-    client = Client(api_key=environ.get("GEMINI_API_KEY"))
+def _predict(args: tuple[str, str, list[str], str | None]):
+    text, model, classes, token = args
+    client = Client(api_key=token or environ.get("GEMINI_API_KEY"))
     config = GenerateContentConfig(
         temperature=0,
         max_output_tokens=1,
@@ -63,11 +62,13 @@ def predict(
     prompter: Callable[[str], str],
     model="gemini-2.0-flash",
     threads=10,
+    api_key: str | None = None,
 ):
     with ThreadPoolExecutor(max_workers=threads) as executor:
         labels = list(
             executor.map(
-                _predict, [(prompter(text), model, classes) for text in prompts]
+                _predict,
+                [(prompter(text), model, classes, api_key) for text in prompts],
             )
         )
     probabilities = [float("nan")] * len(prompts)
@@ -83,11 +84,13 @@ def test(
     classes: list[str],
     threads: int,
     prefix: str,
+    api_key: str | None = None,
 ):
     with ThreadPoolExecutor(max_workers=threads) as executor:
         dataset["prediction"] = list(
             executor.map(
-                _predict, [(prompter(text), model, classes) for text in dataset["text"]]
+                _predict,
+                [(prompter(text), model, classes, api_key) for text in dataset["text"]],
             )
         )
     output = calculate_metrics(list(dataset["score"]), list(dataset["prediction"]))
@@ -107,9 +110,16 @@ def test_classification(
     model="gemini-2.0-flash",
     classes=["1", "2", "3", "4", "5"],
     threads=10,
+    api_key: str | None = None,
 ):
     return test(
-        load_csv(Test.classification_path), model, prompter, classes, threads, "test"
+        load_csv(Test.classification_path),
+        model,
+        prompter,
+        classes,
+        threads,
+        "test",
+        api_key,
     )
 
 
@@ -118,9 +128,16 @@ def test_detection(
     model="gemini-2.0-flash",
     classes=["0", "1"],
     threads=10,
+    api_key: str | None = None,
 ):
     return test(
-        load_csv(Test.detection_path), model, prompter, classes, threads, "test"
+        load_csv(Test.detection_path),
+        model,
+        prompter,
+        classes,
+        threads,
+        "test",
+        api_key,
     )
 
 
@@ -129,9 +146,16 @@ def test_exclusive(
     model="gemini-2.0-flash",
     classes=["0", "1"],
     threads=10,
+    api_key: str | None = None,
 ):
     return test(
-        load_csv(Exclusive), model, prompter, classes, threads, "test_exclusive"
+        load_csv(Exclusive),
+        model,
+        prompter,
+        classes,
+        threads,
+        "test_exclusive",
+        api_key,
     )
 
 
@@ -140,12 +164,25 @@ def test_lengths(
     model="gemini-2.0-flash",
     classes=["0", "1"],
     threads=10,
+    api_key: str | None = None,
 ):
     long = test(
-        load_csv(LongLengths), model, prompter, classes, threads, "test_long_lengths"
+        load_csv(LongLengths),
+        model,
+        prompter,
+        classes,
+        threads,
+        "test_long_lengths",
+        api_key,
     )
     short = test(
-        load_csv(ShortLengths), model, prompter, classes, threads, "test_short_lengths"
+        load_csv(ShortLengths),
+        model,
+        prompter,
+        classes,
+        threads,
+        "test_short_lengths",
+        api_key,
     )
     return short, long
 
@@ -155,7 +192,14 @@ def test_repetition(
     model="gemini-2.0-flash",
     classes=["0", "1"],
     threads=10,
+    api_key: str | None = None,
 ):
     return test(
-        load_csv(Repetition), model, prompter, classes, threads, "test_repetition"
+        load_csv(Repetition),
+        model,
+        prompter,
+        classes,
+        threads,
+        "test_repetition",
+        api_key,
     )
