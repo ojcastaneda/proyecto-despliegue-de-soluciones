@@ -69,7 +69,7 @@ class CustomTrainer(Trainer):
     ):
         is_prediction = train_dataset is None and eval_dataset is None
         optimize_arguments(arguments, is_prediction)
-        classes: list[str] | None = model.config.classes if hasattr(model.config, "classes") else None  # type: ignore
+        classes = decoder_classes(model)
         if class_weights is not None:
             weights: list[float] = [0.0] * (
                 model.config.num_labels if classes is None else len(classes)  # type: ignore
@@ -240,15 +240,16 @@ def log_metrics_mlflow(
         parameters["classes"] = str(model[1])
     else:
         model_name = str(model.name_or_path)
-        if hasattr(model, "classifier"):
+        classes = decoder_classes(model)
+        if classes is None:
             model_type = "encoder"
-            classes = model.config.num_labels  # type: ignore
+            classes_size: int = model.config.num_labels  # type: ignore
         else:
             model_type = "decoder"
-            classes = len(model.config.classes)  # type: ignore
-            parameters["classes"] = str(model.config.classes)  # type: ignore
+            parameters["classes"] = str(classes)
+            classes_size = len(classes)
     set_experiment(f"{prefix}_{model_name}")
-    model_output = "classification" if classes == 5 else "detection"
+    model_output = "classification" if classes_size == 5 else "detection"
     default_arguments = TrainingArguments()
     if not isinstance(model, tuple):
         optimize_arguments(default_arguments)
@@ -300,4 +301,12 @@ def relative_path(path: str):
         get_ipython  # type: ignore
         return path
     except NameError:
-        return join(dirname(abspath(sys.argv[0])), path)
+        return abspath(join(dirname(sys.argv[0]), path))
+
+
+def decoder_classes(model: PreTrainedModel | PeftModel) -> list[str] | None:
+    if hasattr(model.config, "classes"):
+        return model.config.classes  # type: ignore
+    if hasattr(model, "peft_config") and hasattr(model.peft_config["default"], "classes"):  # type: ignore
+        return model.peft_config["default"].classes  # type: ignore
+    return None

@@ -1,3 +1,4 @@
+from dataclasses import asdict, dataclass, field
 from .utils import calculate_metrics
 from datasets import Dataset
 from numpy import array, where
@@ -5,6 +6,7 @@ from numpy.typing import NDArray
 from os.path import exists, isdir
 from pandas import DataFrame
 from peft import LoraConfig, PeftModel, get_peft_model
+from peft.tuners.lora import LoraRuntimeConfig
 from scipy.special import softmax
 from shutil import rmtree
 from torch import Tensor, arange
@@ -16,6 +18,22 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.trainer_utils import EvalPrediction, PredictionOutput
 from typing import Callable
+
+
+@dataclass
+class DecoderLoraConfig(LoraConfig):
+    classes: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_lora_config(cls, config: LoraConfig, classes: list[str]):
+        data = asdict(config)
+        if "runtime_config" in data and isinstance(data["runtime_config"], dict):
+            data["runtime_config"] = LoraRuntimeConfig(**data["runtime_config"])
+        return cls(**data, classes=classes)
+
+    @classmethod
+    def from_json_file(cls, path: str):
+        return cls(**LoraConfig.from_json_file(path))
 
 
 def create_model(
@@ -30,8 +48,11 @@ def create_model(
     model = AutoModelForCausalLM.from_pretrained(model_name)
     if lora_configuration is not None:
         model.enable_input_require_grads()
-        model = get_peft_model(model, lora_configuration)
-    model.config.classes = classes  # type: ignore
+        model = get_peft_model(
+            model, DecoderLoraConfig.from_lora_config(lora_configuration, classes)
+        )
+    else:
+        model.config.classes = classes  # type: ignore
     return model, tokenizer  # type: ignore
 
 
@@ -57,7 +78,13 @@ def load_model(model_name: str, path: str, tokenizer_name: str | None = None):
     tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         model_name if tokenizer_name is None else tokenizer_name
     )
-    model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(path)
+    try:
+        config = DecoderLoraConfig.from_json_file(path)
+        model = PeftModel.from_pretrained(
+            AutoModelForCausalLM.from_pretrained(model_name), path, config=config
+        )
+    except:
+        model = AutoModelForCausalLM.from_pretrained(path)
     return model, tokenizer
 
 
