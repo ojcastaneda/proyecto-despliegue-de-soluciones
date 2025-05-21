@@ -1,0 +1,6 @@
+artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/625539896229160574
+creation_time: 1747636015543
+experiment_id: '625539896229160574'
+last_update_time: 1747636015543
+lifecycle_stage: active
+name: test_bigscience/bloom-1b1
