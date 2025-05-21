@@ -1,0 +1,6 @@
+artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/858453303613415865
+creation_time: 1747634013333
+experiment_id: '858453303613415865'
+last_update_time: 1747634013333
+lifecycle_stage: active
+name: test_exclusive_distilbert/distilgpt2

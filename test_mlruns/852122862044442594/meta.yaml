@@ -1,0 +1,6 @@
+artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/852122862044442594
+creation_time: 1747635689093
+experiment_id: '852122862044442594'
+last_update_time: 1747635689093
+lifecycle_stage: active
+name: test_exclusive_google/canine-c

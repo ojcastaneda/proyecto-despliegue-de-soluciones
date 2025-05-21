@@ -1,0 +1,6 @@
+artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/115771211698280586
+creation_time: 1747638850170
+experiment_id: '115771211698280586'
+last_update_time: 1747638850170
+lifecycle_stage: active
+name: test_short_lengths_deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B

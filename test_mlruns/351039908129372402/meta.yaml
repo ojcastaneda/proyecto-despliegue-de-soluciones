@@ -1,0 +1,6 @@
+artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/351039908129372402
+creation_time: 1747634846904
+experiment_id: '351039908129372402'
+last_update_time: 1747634846904
+lifecycle_stage: active
+name: test_textdetox/xlmr-large-toxicity-classifier

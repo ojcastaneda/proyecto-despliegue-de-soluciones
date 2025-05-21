@@ -1,0 +1,15 @@
+artifact_uri: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/679283826512968628/9bf9e596e89647e89aab4da5654f4f82/artifacts
+end_time: 1747665479613
+entry_point_name: ''
+experiment_id: '679283826512968628'
+lifecycle_stage: active
+run_id: 9bf9e596e89647e89aab4da5654f4f82
+run_name: decoder_detection_14:37:59-19/05/2025
+run_uuid: 9bf9e596e89647e89aab4da5654f4f82
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747665479571
+status: 3
+tags: []
+user_id: estudiante

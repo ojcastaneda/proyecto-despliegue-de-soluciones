@@ -1,0 +1,6 @@
+artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/906314087383083741
+creation_time: 1747635969642
+experiment_id: '906314087383083741'
+last_update_time: 1747635969642
+lifecycle_stage: active
+name: test_short_lengths_lxyuan/distilbert-base-multilingual-cased-sentiments-student
