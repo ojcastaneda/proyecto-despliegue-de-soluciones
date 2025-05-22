@@ -1,6 +1,0 @@
-artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/384824789912872027
-creation_time: 1747665930577
-experiment_id: '384824789912872027'
-last_update_time: 1747665930577
-lifecycle_stage: active
-name: test_short_lengths_gemini-2.0-flash

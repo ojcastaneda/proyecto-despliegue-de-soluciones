@@ -1,6 +1,0 @@
-artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/225022402272043067
-creation_time: 1747635691461
-experiment_id: '225022402272043067'
-last_update_time: 1747635691461
-lifecycle_stage: active
-name: test_long_lengths_google/canine-c

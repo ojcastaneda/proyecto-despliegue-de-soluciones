@@ -1,6 +1,0 @@
-artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/949699521806053350
-creation_time: 1747633952756
-experiment_id: '949699521806053350'
-last_update_time: 1747633952756
-lifecycle_stage: active
-name: test_exclusive_distilbert/distilbert-base-multilingual-cased

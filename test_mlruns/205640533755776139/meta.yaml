@@ -1,6 +1,0 @@
-artifact_location: file:///home/estudiante/proyecto-despliegue-de-soluciones/mlruns/205640533755776139
-creation_time: 1747640551238
-experiment_id: '205640533755776139'
-last_update_time: 1747640551238
-lifecycle_stage: active
-name: test_short_lengths_dccuchile/bert-base-spanish-wwm-cased
