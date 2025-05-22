@@ -1,14 +1,16 @@
 from streamlit import (
     button,
     columns,
+    error,
     text_input,
     number_input,
     selectbox,
     set_page_config,
     spinner,
+    success,
     text_area,
     title,
-    write,
+    warning
 )
 from utils import MODELS, load_models, plot_predictions, predict
 
@@ -29,25 +31,21 @@ with model_threshold:
     )
 if model.file_name == "gemini":
     api_key = text_input("Llave de acceso a API de Gemini", type="password")
-classification_model, detection_model = load_models(model)
 prompt = text_area("Texto a evaluar", height=200)
 results = None
 with columns([1, 1, 1])[1]:
     if button("Ejecutar inferencia", use_container_width=True):
         with spinner("Ejecutando inferencia"):
-            results = predict(
-                classification_model, detection_model, prompt, threshold, api_key
-            )
+            results = predict(*load_models(model_name), prompt, threshold, api_key)
 if results is not None:
-    detection_label = results[0].iloc[0]["labels"]
-    label = "No humor."
-    if detection_label == -1:
-        label = "El modelo no seleccionó una opción válida."
-    if results[1] is not None:
+    if results[0].iloc[0]["labels"] == -1:
+        error("Error: el modelo no seleccionó una opción válida.")
+    elif results[1] is not None:
         classification_label = results[1].iloc[0]["labels"]
         if classification_label == -1:
-            label = "Humor, sin puntuación ya que el modelo no seleccionó una opción válida."
+            warning("Clasificación: humor, sin puntuación ya que el modelo no seleccionó una opción válida.")
         else:
-            label = f"Humor, con puntuación de {int(classification_label) + 1}."
-    write(label)
+            success(f"Clasificación: humor, con puntuación de {int(classification_label) + 1}.")
+    else:
+        success("Clasificación: no humor.")
     plot_predictions(*results)

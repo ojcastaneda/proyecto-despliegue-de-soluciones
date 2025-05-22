@@ -56,16 +56,18 @@ MODELS = {
     "TextDetox": ModelDetails(False, "textdetox", True, None),
 }
 
-ARGUMENTS = TrainingArguments(disable_tqdm=True, per_device_eval_batch_size=1)
+ARGUMENTS = TrainingArguments(disable_tqdm=True, per_device_eval_batch_size=1, use_cpu=True)
 
 
-@cache_resource(show_spinner="Cargando modelos")
+@cache_resource(max_entries=1, show_spinner="Cargando modelos")
 def load_models(
-    model: ModelDetails,
+    model_key: str,
 ) -> (
     tuple[PredictionModel, PredictionModel]
     | tuple[Callable[[str], str], Callable[[str], str]]
 ):
+    cache_resource.clear()
+    model = MODELS[model_key]
     spec = spec_from_file_location(
         model.file_name, relative_path(f"../experiments/{model.file_name}.py")
     )
