@@ -72,3 +72,93 @@ El repositorio permite entrenar clasificadores de textos con detección binaria 
 - [HAHA 2019](https://www.kaggle.com/datasets/bachrr/haha-2019/data)
 - [CHISTES_spanish_jokes](https://huggingface.co/datasets/mrm8488/CHISTES_spanish_jokes)
 - [stupidstuff.org](https://github.com/taivop/joke-dataset)
+
+## Despliegue
+
+Se disponibilizó una apliación sencilla desarrollada con streamlit para poder utilizar los modelos que fueron entrenados y evaluados en este trabajo.
+
+![Vista de la aplicación](img/dashboard.png)
+
+La aplicación permite seleccionar el modelo, opcionalmente un umbral de detección, e incluye una entrada de texto con a ser evaluada por el modelo seleccionado.
+
+Para acceder a la misma diríjase a:
+
+[http://3.223.144.28:8501/](http://3.223.144.28:8501/)
+
+### Infrastructura
+
+La aplicación fue desplegada en AWS, con una instancia de EC2 detrás de una Elastic IP con la cual podemos conservar la dirección IP de la instancia al iniciarla y apagarla.
+
+Se utilizó una AMI de Ubuntu con una instancia t2.xlarge debido a los requerimientos de memoria de los modelos.
+
+Adicionalmente, los modelos entrenados se cargan al servidor a través de S3.
+
+![Diagrama de Arquitectura](img/deployment.drawio.png)
+
+> [!NOTE]
+> La infraestrura será eliminada de forma permanente luego de la evaluación
+
+### Configuración del servicio
+
+Una vez creada la infrastructura descrita, se configura la aplicación como un servicio en la instancia de EC2 se llevó a cabo con los siguientes pasos.
+
+1. Clonar el repositorio:
+
+    ```sh
+    git clone https://github.com/ojcastaneda/spanish-humor-detection.git
+    cd spanish-humor-detection
+    ```
+
+2. Cargar modelos:
+
+    ```sh
+    aws s3 cp --recursive s3://maia-humor-detection tuned_models
+    ```
+
+3. Creación del entorno virtual e instalación de dependencias:
+
+    ```sh
+    python3 -m venv .venv
+    source .venv/bin/activate
+    cd dashboard
+    pip install -r requirements.txt
+    ```
+
+4. Configuración del servicio:
+
+    Se crea el archivo de configuración del servicio en `/etc/systemd/system/streamlit.service` con el siguiente contenido:
+
+    ```ini
+    [Unit]
+    Description=Streamlit App
+    After=network.target
+
+    [Service]
+    User=ubuntu
+    WorkingDirectory=/home/ubuntu/spanish-humor-detection
+    ExecStart=/home/ubuntu/spanish-humor-detection/.venv/bin/streamlit run dashboard/app.py
+    Restart=on-failure
+    RestartSec=5
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+    Se habilita y se inicia el servicio:
+
+    ```sh
+    sudo systemctl enable streamlit.service
+    sudo systemctl start streamlit.service
+    ```
+
+    Para conocer el estado del servicio, se utiliza el siguiente comando:
+
+    ```sh
+    sudo systemctl status streamlit.service
+    ```
+
+    Por ultimo, para ver logs del servicio:
+
+    ```sh
+    sudo journalctl -u streamlit.service -f
+    ```
