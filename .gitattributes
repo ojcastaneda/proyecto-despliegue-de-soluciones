@@ -1,2 +1,0 @@
-tuned_models/**/*.json filter=lfs diff=lfs merge=lfs
-tuned_models/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
