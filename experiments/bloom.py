@@ -79,7 +79,7 @@ def run_detection(
 ):
     set_random_seeds()
     arguments = TrainingArguments(
-        max_steps=1,
+        max_steps=10000,
         eval_steps=1000,
         lr_scheduler_type="cosine_with_min_lr",
         lr_scheduler_kwargs={"num_cycles": 0.6, "min_lr": 1e-5},
@@ -105,15 +105,15 @@ def run_detection(
             threshold=threshold,
             save_path=f"{save_path}/detection" if full_dataset else None,
         )
-    #     pprint(train_logs)
-    #     pprint(metrics)
-    # if not full_dataset or not train:
-    #     pprint(test_detection(model, tokenizer, arguments, prompter, threshold))
-    # if full_dataset:
-    #     pprint(test_exclusive(model, tokenizer, arguments, prompter, threshold))
-    #     pprint(test_lengths(model, tokenizer, arguments, prompter, threshold))
-    #     pprint(test_repetition(model, tokenizer, arguments, prompter, threshold))
-    # pprint(predict_detection(model, tokenizer, prompts, arguments, prompter, threshold))
+        pprint(train_logs)
+        pprint(metrics)
+    if not full_dataset or not train:
+        pprint(test_detection(model, tokenizer, arguments, prompter, threshold))
+    if full_dataset:
+        pprint(test_exclusive(model, tokenizer, arguments, prompter, threshold))
+        pprint(test_lengths(model, tokenizer, arguments, prompter, threshold))
+        pprint(test_repetition(model, tokenizer, arguments, prompter, threshold))
+    pprint(predict_detection(model, tokenizer, prompts, arguments, prompter, threshold))
 
 
 def classification_prompter(input: str):

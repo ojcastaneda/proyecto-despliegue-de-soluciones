@@ -1,11 +1,13 @@
-from dataclasses import asdict, dataclass, field
 from .utils import calculate_metrics
+from dataclasses import asdict, dataclass, field
 from datasets import Dataset
+
+# from json import load
 from numpy import array, where
 from numpy.typing import NDArray
-from os.path import exists, isdir
+from os.path import exists, join, isdir
 from pandas import DataFrame
-from peft import LoraConfig, PeftModel, get_peft_model
+from peft import LoraConfig, PeftConfig, PeftModel, get_peft_model
 from peft.tuners.lora import LoraRuntimeConfig
 from scipy.special import softmax
 from shutil import rmtree
@@ -25,15 +27,18 @@ class DecoderLoraConfig(LoraConfig):
     classes: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_lora_config(cls, config: LoraConfig, classes: list[str]):
+    def from_lora_config(cls, config: LoraConfig | PeftConfig, classes: list[str]):
         data = asdict(config)
         if "runtime_config" in data and isinstance(data["runtime_config"], dict):
             data["runtime_config"] = LoraRuntimeConfig(**data["runtime_config"])
         return cls(**data, classes=classes)
 
     @classmethod
-    def from_json_file(cls, path: str):
-        return cls(**LoraConfig.from_json_file(path))
+    def from_peft_type(cls, **kwargs):
+        classes = kwargs.pop("classes")
+        return DecoderLoraConfig.from_lora_config(
+            LoraConfig.from_peft_type(**kwargs), classes
+        )
 
 
 def create_model(
@@ -79,9 +84,10 @@ def load_model(model_name: str, path: str, tokenizer_name: str | None = None):
         model_name if tokenizer_name is None else tokenizer_name
     )
     try:
-        config = DecoderLoraConfig.from_json_file(path)
         model = PeftModel.from_pretrained(
-            AutoModelForCausalLM.from_pretrained(model_name), path, config=config
+            AutoModelForCausalLM.from_pretrained(model_name),
+            path,
+            config=DecoderLoraConfig.from_pretrained(path),
         )
     except:
         model = AutoModelForCausalLM.from_pretrained(path)

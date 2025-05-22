@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datasets import disable_progress_bars
 from types import FunctionType
 from typing import Callable
 from humor_detection.predict import predict_classification, predict_detection
@@ -11,6 +12,11 @@ from streamlit import bar_chart, cache_resource, expander
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.training_args import TrainingArguments
+import torch
+
+
+torch.classes.__path__ = []
+disable_progress_bars()
 
 
 @dataclass

@@ -20,7 +20,13 @@ with model_selection:
 model = MODELS[model_name]
 api_key = None
 with model_threshold:
-    threshold = number_input("Probabilidad mínima", 0.0, 1.0, model.threshold, disabled=model.file_name == "gemini")
+    threshold = number_input(
+        "Probabilidad mínima",
+        0.0,
+        1.0,
+        model.threshold,
+        disabled=model.file_name == "gemini",
+    )
 if model.file_name == "gemini":
     api_key = text_input("Llave de acceso a API de Gemini", type="password")
 classification_model, detection_model = load_models(model)
