@@ -39,13 +39,89 @@ El repositorio permite entrenar clasificadores de textos con detección binaria 
 ### API de entrenamiento
 
 1. Clonar el repositorio:
-    - `git clone https://github.com/usuario/repositorio-humor.git`
 
-2. Instalar la librería (recomendado en un entorno virtual):
-    - `pip install ./humor-detection`
+    ```sh
+    git clone https://github.com/ojcastaneda/spanish-humor-detection.git
+    cd spanish-humor-detection
+    ```
+
+2. Creación del entorno virtual e instalación de dependencias:
+
+    ```sh
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install ./humor-detection
+    ```
 
 3. Ejecutar cualquier archivo de la carpeta `experiments` con uno de los siguientes argumentos: `classification`, `detection`, `train_classification` o `train_detection`, según el archivo seleccionado:
-    - `python ./experiments/dccuchile.py classification`
+
+    ```sh
+    python ./experiments/dccuchile.py classification
+    ```
+
+### Aplicación de inferencia local
+
+Una vez creada la infrastructura descrita, se configura la aplicación como un servicio en la instancia de EC2 se llevó a cabo con los siguientes pasos.
+
+1. Clonar el repositorio:
+
+    ```sh
+    git clone https://github.com/ojcastaneda/spanish-humor-detection.git
+    cd spanish-humor-detection
+    ```
+
+2. Cargar modelos con Hugging face:
+
+    ```sh
+    git clone https://huggingface.co/ojcastaneda/spanish-humor-detection tuned_models
+    cd tuned_models
+    git lfs pull
+    cd ..
+    ```
+
+3. Creación del entorno virtual e instalación de dependencias:
+
+    ```sh
+    python3 -m venv .venv
+    source .venv/bin/activate
+    cd dashboard
+    pip install -r requirements.txt
+    ```
+
+4. Iniciar el servicio:
+
+    ```sh
+    streamlit run app.py
+    ```
+
+### Aplicación de inferencia como servicio
+
+1. Realizar la configuración actual hasta el punto 3.
+
+2. Crear el archivo de configuración del servicio en `/etc/systemd/system/streamlit.service` con el siguiente contenido:
+
+    ```ini
+    [Unit]
+    Description=Streamlit App
+    After=network.target
+
+    [Service]
+    User=ubuntu
+    WorkingDirectory=/home/ubuntu/spanish-humor-detection
+    ExecStart=/home/ubuntu/spanish-humor-detection/.venv/bin/streamlit run dashboard/app.py
+    Restart=on-failure
+    RestartSec=5
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+3. Iniciar el servicio:
+
+    ```sh
+    sudo systemctl enable streamlit.service
+    sudo systemctl start streamlit.service
+    ```
 
 ---
 
